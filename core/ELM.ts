@@ -4,6 +4,7 @@ import { Matrix } from './Matrix';
 import { Activations } from './Activations';
 import { ELMConfig, defaultConfig } from './ELMConfig';
 import { UniversalEncoder } from '../preprocessing/UniversalEncoder';
+import { Augment } from '../utils/Augment';
 
 export interface ELMModel {
     W: number[][];
@@ -66,16 +67,20 @@ export class ELM {
         );
     }
 
-    public train(): void {
+    public train(augmentationOptions?: {
+        suffixes?: string[];
+        prefixes?: string[];
+        includeNoise?: boolean;
+    }): void {
         const X: number[][] = [], Y: number[][] = [];
-        this.categories.forEach((cat, i) => {
-            const baseVec = this.encoder.normalize(this.encoder.encode(cat));
-            X.push(baseVec);
-            Y.push(this.oneHot(this.categories.length, i));
 
-            const augVec = this.encoder.normalize(this.encoder.encode(cat + ' music'));
-            X.push(augVec);
-            Y.push(this.oneHot(this.categories.length, i));
+        this.categories.forEach((cat, i) => {
+            const variants = Augment.generateVariants(cat, this.charSet, augmentationOptions);
+            for (const variant of variants) {
+                const vec = this.encoder.normalize(this.encoder.encode(variant));
+                X.push(vec);
+                Y.push(this.oneHot(this.categories.length, i));
+            }
         });
 
         const W = this.randomMatrix(this.hiddenUnits, X[0].length);

@@ -1,0 +1,33 @@
+{
+  "name": "neuroleaf",
+  "version": "1.0.0",
+  "description": "This is a javascript ELM library",
+  "main": "index.js",
+  "directories": {
+    "example": "examples"
+  },
+  "scripts": {
+    "build": "rollup -c",
+    "watch": "rollup -c -w",
+    "clean": "rm -rf dist"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/infiniteCrank/NeuroLeaf.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/infiniteCrank/NeuroLeaf/issues"
+  },
+  "homepage": "https://github.com/infiniteCrank/NeuroLeaf#readme",
+  "devDependencies": {
+    "@types/node": "^24.0.3",
+    "eslint": "^9.29.0",
+    "prettier": "^3.5.3",
+    "rollup": "^4.43.0",
+    "rollup-plugin-typescript2": "^0.36.0",
+    "typescript": "^5.8.3"
+  }
+}

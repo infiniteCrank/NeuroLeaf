@@ -1,0 +1,24 @@
+{
+    "compilerOptions": {
+        "target": "ES6",
+        "module": "ESNext",
+        "lib": [
+            "ES6",
+            "DOM"
+        ],
+        "declaration": true,
+        "outDir": "dist",
+        "moduleResolution": "node",
+        "esModuleInterop": true,
+        "strict": true,
+        "resolveJsonModule": true,
+        "skipLibCheck": true
+    },
+    "include": [
+        "core",
+        "tasks",
+        "preprocessing",
+        "utils",
+        "index.ts"
+    ]
+}

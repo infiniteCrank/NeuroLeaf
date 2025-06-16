@@ -1,6 +1,9 @@
+// ELM.ts - Core ELM logic with TypeScript types
+
 import { Matrix } from './Matrix';
 import { Activations } from './Activations';
 import { ELMConfig, defaultConfig } from './ELMConfig';
+import { TextEncoder } from '../preprocessing/TextEncoder';
 
 export interface ELMModel {
     W: number[][];
@@ -18,8 +21,7 @@ export class ELM {
     public hiddenUnits: number;
     public maxLen: number;
     public activation: string;
-    private charSet: string;
-    private charSize: number;
+    private encoder: TextEncoder;
     private model: ELMModel | null;
 
     constructor(config: ELMConfig) {
@@ -28,30 +30,8 @@ export class ELM {
         this.hiddenUnits = cfg.hiddenUnits;
         this.maxLen = cfg.maxLen;
         this.activation = cfg.activation;
-        this.charSet = 'abcdefghijklmnopqrstuvwxyz';
-        this.charSize = this.charSet.length;
+        this.encoder = new TextEncoder({ maxLen: this.maxLen });
         this.model = null;
-    }
-
-    private charToOneHot(c: string): number[] {
-        const index = this.charSet.indexOf(c.toLowerCase());
-        const vec = Array(this.charSize).fill(0);
-        if (index !== -1) vec[index] = 1;
-        return vec;
-    }
-
-    private textToVector(text: string): number[] {
-        const cleaned = text.toLowerCase().replace(/[^a-z]/g, '').padEnd(this.maxLen, ' ').slice(0, this.maxLen);
-        let vec: number[] = [];
-        for (let i = 0; i < cleaned.length; i++) {
-            vec.push(...this.charToOneHot(cleaned[i]));
-        }
-        return vec;
-    }
-
-    private normalizeVector(v: number[]): number[] {
-        const norm = Math.sqrt(v.reduce((sum, x) => sum + x * x, 0));
-        return norm > 0 ? v.map(x => x / norm) : v;
     }
 
     private oneHot(n: number, index: number): number[] {
@@ -75,11 +55,11 @@ export class ELM {
     public train(): void {
         const X: number[][] = [], Y: number[][] = [];
         this.categories.forEach((cat, i) => {
-            const baseVec = this.normalizeVector(this.textToVector(cat));
+            const baseVec = this.encoder.normalizeVector(this.encoder.textToVector(cat));
             X.push(baseVec);
             Y.push(this.oneHot(this.categories.length, i));
 
-            const augVec = this.normalizeVector(this.textToVector(cat + ' music'));
+            const augVec = this.encoder.normalizeVector(this.encoder.textToVector(cat + ' music'));
             X.push(augVec);
             Y.push(this.oneHot(this.categories.length, i));
         });
@@ -100,7 +80,7 @@ export class ELM {
     public predict(text: string, topK: number = 5): PredictResult[] {
         if (!this.model) throw new Error("Model not trained.");
 
-        const vec = this.normalizeVector(this.textToVector(text));
+        const vec = this.encoder.normalizeVector(this.encoder.textToVector(text));
         const { W, b, beta } = this.model;
         const tempH = Matrix.multiply([vec], Matrix.transpose(W));
         const activationFn = Activations.get(this.activation);

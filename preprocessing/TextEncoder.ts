@@ -1,25 +1,36 @@
 // TextEncoder.ts - Text preprocessing and one-hot encoding for ELM
 
+import { Tokenizer } from './Tokenizer';
+
 export interface TextEncoderConfig {
     charSet?: string;
     maxLen?: number;
+    useTokenizer?: boolean;
+    tokenizerDelimiter?: RegExp;
 }
 
-const defaultTextEncoderConfig: Required<TextEncoderConfig> = {
+const defaultTextEncoderConfig: Required<Omit<TextEncoderConfig, 'tokenizerDelimiter'>> = {
     charSet: 'abcdefghijklmnopqrstuvwxyz',
-    maxLen: 15
+    maxLen: 15,
+    useTokenizer: false
 };
 
 export class TextEncoder {
     private charSet: string;
     private charSize: number;
     private maxLen: number;
+    private useTokenizer: boolean;
+    private tokenizer?: Tokenizer;
 
     constructor(config: TextEncoderConfig = {}) {
         const cfg = { ...defaultTextEncoderConfig, ...config };
         this.charSet = cfg.charSet;
         this.charSize = cfg.charSet.length;
         this.maxLen = cfg.maxLen;
+        this.useTokenizer = cfg.useTokenizer;
+        if (this.useTokenizer) {
+            this.tokenizer = new Tokenizer(config.tokenizerDelimiter);
+        }
     }
 
     public charToOneHot(c: string): number[] {
@@ -30,7 +41,15 @@ export class TextEncoder {
     }
 
     public textToVector(text: string): number[] {
-        const cleaned = text.toLowerCase().replace(new RegExp(`[^${this.charSet}]`, 'g'), '').padEnd(this.maxLen, ' ').slice(0, this.maxLen);
+        let cleaned: string;
+
+        if (this.useTokenizer && this.tokenizer) {
+            const tokens = this.tokenizer.tokenize(text).join('');
+            cleaned = tokens.slice(0, this.maxLen).padEnd(this.maxLen, ' ');
+        } else {
+            cleaned = text.toLowerCase().replace(new RegExp(`[^${this.charSet}]`, 'g'), '').padEnd(this.maxLen, ' ').slice(0, this.maxLen);
+        }
+
         const vec: number[] = [];
         for (let i = 0; i < cleaned.length; i++) {
             vec.push(...this.charToOneHot(cleaned[i]));

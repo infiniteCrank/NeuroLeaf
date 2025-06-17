@@ -32,7 +32,6 @@ export class IO {
     }
 
     static importDelimited(text: string, delimiter: ',' | '\t' = ',', hasHeader = true): LabeledExample[] {
-        console.log(text)
         const lines = text.trim().split('\n');
         const examples: LabeledExample[] = [];
 

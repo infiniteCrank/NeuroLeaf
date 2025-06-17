@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>ELM Autocomplete Demo</title>
+    <style>
+        body { font-family: sans-serif; padding: 2rem; }
+        input { width: 300px; padding: 0.5rem; font-size: 1rem; }
+        #output { margin-top: 1rem; }
+    </style>
+</head>
+<body>
+    <h1>ELM Autocomplete</h1>
+    <input id="autocomplete-input" type="text" placeholder="Start typing...">
+    <div id="output">...</div>
+
+    <script type="module">
+        import { AutoComplete } from './AutoComplete.js';
+
+        const inputElement = document.getElementById('autocomplete-input');
+        const outputElement = document.getElementById('output');
+
+        const categories = ['rock', 'jazz', 'hip hop', 'classical', 'electronic', 'country'];
+
+        new AutoComplete(categories, {
+            inputElement,
+            outputElement,
+            topK: 3,
+            augmentationOptions: {
+                suffixes: ['music', 'genre'],
+                prefixes: ['modern', 'classic'],
+                includeNoise: true
+            }
+        });
+    </script>
+</body>
+</html>

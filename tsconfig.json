@@ -1,24 +1,23 @@
 {
     "compilerOptions": {
         "target": "ES6",
-        "module": "ESNext",
-        "lib": [
-            "ES6",
-            "DOM"
-        ],
-        "declaration": true,
-        "outDir": "dist",
+        "module": "ES6", // or "CommonJS" if you're Node-first
+        "outDir": "./dist",
         "moduleResolution": "node",
+        "declaration": true,
         "esModuleInterop": true,
+        "skipLibCheck": true,
+        "allowSyntheticDefaultImports": true,
+        "forceConsistentCasingInFileNames": true,
         "strict": true,
+        "sourceMap": true,
         "resolveJsonModule": true,
-        "skipLibCheck": true
+        "lib": [
+            "DOM",
+            "ES6"
+        ]
     },
     "include": [
-        "core",
-        "tasks",
-        "preprocessing",
-        "utils",
-        "index.ts"
+        "src/**/*"
     ]
 }

@@ -412,13 +412,29 @@
             return JSON.stringify(pairs, null, 2);
         }
         static importDelimited(text, delimiter = ',', hasHeader = true) {
+            var _a, _b, _c, _d;
+            console.log(text);
             const lines = text.trim().split('\n');
             const examples = [];
+            const headers = hasHeader
+                ? lines[0].split(delimiter).map(h => h.trim().toLowerCase())
+                : lines[0].split(delimiter).length === 1
+                    ? ['label']
+                    : ['text', 'label'];
             const startIndex = hasHeader ? 1 : 0;
             for (let i = startIndex; i < lines.length; i++) {
-                const [col1, col2] = lines[i].split(delimiter);
-                if (col1 && col2) {
-                    examples.push({ text: col1.trim(), label: col2.trim() });
+                const parts = lines[i].split(delimiter);
+                if (parts.length === 1) {
+                    examples.push({ text: parts[0].trim(), label: parts[0].trim() });
+                }
+                else {
+                    const textIdx = headers.indexOf('text');
+                    const labelIdx = headers.indexOf('label');
+                    const text = textIdx !== -1 ? (_a = parts[textIdx]) === null || _a === void 0 ? void 0 : _a.trim() : (_b = parts[0]) === null || _b === void 0 ? void 0 : _b.trim();
+                    const label = labelIdx !== -1 ? (_c = parts[labelIdx]) === null || _c === void 0 ? void 0 : _c.trim() : (_d = parts[1]) === null || _d === void 0 ? void 0 : _d.trim();
+                    if (text && label) {
+                        examples.push({ text, label });
+                    }
                 }
             }
             return examples;

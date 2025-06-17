@@ -32,14 +32,30 @@ export class IO {
     }
 
     static importDelimited(text: string, delimiter: ',' | '\t' = ',', hasHeader = true): LabeledExample[] {
+        console.log(text)
         const lines = text.trim().split('\n');
         const examples: LabeledExample[] = [];
+
+        const headers = hasHeader
+            ? lines[0].split(delimiter).map(h => h.trim().toLowerCase())
+            : lines[0].split(delimiter).length === 1
+                ? ['label']
+                : ['text', 'label'];
+
         const startIndex = hasHeader ? 1 : 0;
 
         for (let i = startIndex; i < lines.length; i++) {
-            const [col1, col2] = lines[i].split(delimiter);
-            if (col1 && col2) {
-                examples.push({ text: col1.trim(), label: col2.trim() });
+            const parts = lines[i].split(delimiter);
+            if (parts.length === 1) {
+                examples.push({ text: parts[0].trim(), label: parts[0].trim() });
+            } else {
+                const textIdx = headers.indexOf('text');
+                const labelIdx = headers.indexOf('label');
+                const text = textIdx !== -1 ? parts[textIdx]?.trim() : parts[0]?.trim();
+                const label = labelIdx !== -1 ? parts[labelIdx]?.trim() : parts[1]?.trim();
+                if (text && label) {
+                    examples.push({ text, label });
+                }
             }
         }
 

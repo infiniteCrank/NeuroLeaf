@@ -12,7 +12,8 @@
     "build": "rollup -c",
     "postbuild": "cp dist/neuroleaf.umd.js public/neuroleaf.umd.js",
     "watch": "rollup -c -w",
-    "clean": "rm -rf dist"
+    "clean": "rm -rf dist",
+    "test": "vitest"
   },
   "repository": {
     "type": "git",
@@ -33,6 +34,7 @@
     "rollup-plugin-typescript2": "^0.36.0",
     "tslib": "^2.8.1",
     "typescript": "^5.8.3",
-    "vite": "^6.3.5"
+    "vite": "^6.3.5",
+    "vitest": "^3.2.4"
   }
 }

@@ -1,24 +1,29 @@
-import typescript from 'rollup-plugin-typescript2';
+// rollup.config.js (CommonJS fallback)
+const typescript = require('rollup-plugin-typescript2');
+const fs = require('fs');
 
-export default {
-    input: 'index.ts',
+// Manually parse package.json instead of ESM import
+const pkg = JSON.parse(fs.readFileSync('./package.json', 'utf-8'));
+
+module.exports = {
+    input: 'src/index.ts',
     output: [
         {
-            file: 'dist/neuroleaf.cjs.js',
-            format: 'cjs', // CommonJS for Node.js
-            sourcemap: true
+            file: pkg.main,
+            format: 'umd',
+            name: 'NeuroLeaf',
+            sourcemap: true,
         },
         {
-            file: 'dist/neuroleaf.esm.js',
-            format: 'esm', // For bundlers like Webpack or native import
-            sourcemap: true
+            file: pkg.module,
+            format: 'esm',
+            sourcemap: true,
         },
-        {
-            file: 'dist/neuroleaf.umd.js',
-            format: 'umd', // Universal for browser
-            name: 'neuroleaf',
-            sourcemap: true
-        }
     ],
-    plugins: [typescript()]
+    plugins: [
+        typescript({
+            tsconfig: './tsconfig.json',
+            useTsconfigDeclarationDir: true,
+        }),
+    ],
 };

@@ -67,6 +67,10 @@ export class ELM {
         );
     }
 
+    public setCategories(categories: string[]) {
+        this.categories = categories;
+    }
+
     public train(augmentationOptions?: {
         suffixes?: string[];
         prefixes?: string[];

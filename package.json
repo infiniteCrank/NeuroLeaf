@@ -2,7 +2,9 @@
   "name": "neuroleaf",
   "version": "1.0.0",
   "description": "This is a javascript ELM library",
-  "main": "index.js",
+  "main": "dist/neuroleaf.umd.js",
+  "module": "dist/neuroleaf.esm.js",
+  "types": "dist/index.d.ts",
   "directories": {
     "example": "examples"
   },
@@ -28,6 +30,7 @@
     "prettier": "^3.5.3",
     "rollup": "^4.43.0",
     "rollup-plugin-typescript2": "^0.36.0",
+    "tslib": "^2.8.1",
     "typescript": "^5.8.3"
   }
 }

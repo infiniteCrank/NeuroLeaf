@@ -413,7 +413,6 @@
         }
         static importDelimited(text, delimiter = ',', hasHeader = true) {
             var _a, _b, _c, _d;
-            console.log(text);
             const lines = text.trim().split('\n');
             const examples = [];
             const headers = hasHeader

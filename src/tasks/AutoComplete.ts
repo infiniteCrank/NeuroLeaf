@@ -2,7 +2,7 @@
 
 import { ELM } from '../core/ELM';
 import { bindAutocompleteUI } from '../ui/components/BindUI';
-import { EnglishTokenPreset } from '../presets/Presets';
+import { EnglishTokenPreset } from '../config/Presets';
 
 export class AutoComplete {
     private model: ELM;

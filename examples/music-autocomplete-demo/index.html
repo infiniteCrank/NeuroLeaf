@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>🎧 NeuroLeaf Music Genre Demo</title>
+  <style>
+    body { font-family: sans-serif; padding: 2rem; max-width: 600px; margin: auto; }
+    input { width: 100%; font-size: 1.2rem; padding: 0.5rem; }
+    .controls { margin: 1rem 0; }
+    button, select, input[type="file"] {
+      margin-right: 0.5rem;
+      padding: 0.4rem 0.6rem;
+      font-size: 1rem;
+    }
+    #suggestions { margin-top: 1rem; font-size: 1rem; }
+  </style>
+</head>
+<body>
+  <h1>🎶 NeuroLeaf: Music Genre Autocomplete</h1>
+
+  <div class="controls">
+    <label>Presets:</label>
+    <button data-preset="english">English</button>
+    <button data-preset="russian">Русский</button>
+    <button data-preset="emoji">🎻 Emoji</button>
+  </div>
+
+  <div class="controls">
+    <label for="activation-select">Activation:</label>
+    <select id="activation-select">
+      <option value="relu">ReLU</option>
+      <option value="sigmoid">Sigmoid</option>
+      <option value="leakyReLU">Leaky ReLU</option>
+    </select>
+  </div>
+
+  <div class="controls">
+    <label for="data-upload">Upload Training Data (CSV/TSV/JSON):</label>
+    <input type="file" id="data-upload" accept=".csv,.tsv,.json" />
+  </div>
+
+  <input id="genre-input" type="text" placeholder="Type a genre..." />
+  <div id="suggestions"><em>Start typing a genre...</em></div>
+
+  <!-- Load UMD bundle and main script -->
+  <script src="/neuroleaf.umd.js"></script>
+  <script src="/main.js"></script>
+</body>
+</html>

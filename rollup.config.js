@@ -4,19 +4,19 @@ export default {
     input: 'index.ts',
     output: [
         {
-            file: 'dist/elm-lib.cjs.js',
+            file: 'dist/neuroleaf.cjs.js',
             format: 'cjs', // CommonJS for Node.js
             sourcemap: true
         },
         {
-            file: 'dist/elm-lib.esm.js',
+            file: 'dist/neuroleaf.esm.js',
             format: 'esm', // For bundlers like Webpack or native import
             sourcemap: true
         },
         {
-            file: 'dist/elm-lib.umd.js',
+            file: 'dist/neuroleaf.umd.js',
             format: 'umd', // Universal for browser
-            name: 'ELMLib',
+            name: 'neuroleaf',
             sourcemap: true
         }
     ],

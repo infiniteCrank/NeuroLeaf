@@ -5,6 +5,7 @@ import { bindAutocompleteUI } from '../src/ui/components/BindUI';
 import { ELM } from '../src/core/ELM';
 import { IntentClassifier } from '../src/tasks/IntentClassifier';
 import { AutoComplete } from '../src/tasks/AutoComplete';
+import { defaultConfig } from '../src/core/ELMConfig';
 
 // Mocked PredictResult
 const mockResults = [
@@ -134,5 +135,30 @@ describe('AutoComplete Integration', () => {
         input.value = '';
         input.dispatchEvent(new Event('input'));
         expect(output.innerHTML).toContain('Start typing');
+    });
+});
+
+describe('ELMConfig Defaults + Overrides', () => {
+    it('merges defaults with overrides correctly', () => {
+        const config = {
+            categories: ['a', 'b'],
+            activation: 'sigmoid'
+        };
+        const model = new ELM(config);
+        expect(model.activation).toBe('sigmoid');
+        expect(model.maxLen).toBe(defaultConfig.maxLen);
+        expect(model.hiddenUnits).toBe(defaultConfig.hiddenUnits);
+    });
+
+    it('respects overridden maxLen and charSet', () => {
+        const config = {
+            categories: ['x', 'y'],
+            maxLen: 25,
+            charSet: 'xyz',
+            activation: 'relu'
+        };
+        const model = new ELM(config);
+        expect(model.maxLen).toBe(25);
+        expect(model.charSet).toBe('xyz');
     });
 });

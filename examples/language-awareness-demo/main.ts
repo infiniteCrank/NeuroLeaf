@@ -1,48 +1,61 @@
-import { LanguageClassifier } from '../../src/tasks/LanguageClassifier';
-import { ELMConfig } from '../../src/core/ELMConfig';
+// @ts-ignore
+const { LanguageClassifier } = window.NeuroLeaf;
 
 const input = document.getElementById('langInput') as HTMLInputElement;
 const fill = document.getElementById('langFill') as HTMLDivElement;
 
-const config: ELMConfig = {
+const charSet = 'abcdefghijklmnopqrstuvwxyzçàéèñáéíóúü¿¡ ';
+const config = {
     categories: ['English', 'French', 'Spanish'],
-    hiddenUnits: 10,
-    maxLen: 10,
+    hiddenUnits: 50,
+    maxLen: 30,
     activation: 'relu',
-    charSet: 'abcdefghijklmnopqrstuvwxyz',
-    useTokenizer: false
+    charSet,
+    useTokenizer: true,
+    tokenizerDelimiter: /\s+/,
 };
 
-const trainingData = [
-    { text: 'hello', label: 'English' },
-    { text: 'how are you', label: 'English' },
-    { text: 'bonjour', label: 'French' },
-    { text: 'comment ça va', label: 'French' },
-    { text: 'hola', label: 'Spanish' },
-    { text: 'como estas', label: 'Spanish' }
-];
+fetch('/language_greetings_600.csv')
+    .then(res => res.text())
+    .then(csv => {
+        const lines = csv
+            .split('\n')
+            .map(l => l.trim())
+            .filter(Boolean)
+            .slice(1); // Skip header
 
-const classifier = new LanguageClassifier(config);
-classifier.train(trainingData);
+        const trainingData = lines.map(line => {
+            const [text = '', label = ''] = line.split(',');
+            return {
+                text: text.trim().toLowerCase(), // Normalize casing
+                label: label.trim()
+            };
+        }).filter(d => d.text && d.label);
 
-input.addEventListener('input', () => {
-    const typed = input.value.trim();
-    if (!typed) {
-        fill.style.width = '0%';
-        fill.textContent = '';
-        fill.style.background = '#ccc';
-        return;
-    }
+        const classifier = new LanguageClassifier(config);
+        classifier.train(trainingData);
 
-    const [result] = classifier.predict(typed, 1);
-    const percent = Math.round(result.prob * 100);
-    fill.style.width = `${percent}%`;
-    fill.textContent = `${result.label} (${percent}%)`;
+        input.addEventListener('input', () => {
+            const typed = input.value.trim().toLowerCase();
+            if (!typed) {
+                fill.style.width = '0%';
+                fill.textContent = '';
+                fill.style.background = '#ccc';
+                return;
+            }
 
-    // Gradient background based on label
-    fill.style.background = {
-        English: 'linear-gradient(to right, green, lime)',
-        French: 'linear-gradient(to right, blue, cyan)',
-        Spanish: 'linear-gradient(to right, red, orange)'
-    }[result.label] || '#999';
-});
+            const [result] = classifier.predict(typed, 1);
+            const percent = Math.round(result.prob * 100);
+            fill.style.width = `${percent}%`;
+
+            fill.textContent = percent < 40
+                ? '🤔 Not sure'
+                : `${result.label} (${percent}%)`;
+
+            fill.style.background = {
+                English: 'linear-gradient(to right, green, lime)',
+                French: 'linear-gradient(to right, blue, cyan)',
+                Spanish: 'linear-gradient(to right, red, orange)'
+            }[result.label] || '#999';
+        });
+    });

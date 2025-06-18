@@ -1,18 +1,20 @@
 import { defineConfig } from 'vite';
+import path from 'path';
 
 export default defineConfig(({ command }) => {
-    const isDemo = command === 'serve' && process.cwd().includes('examples');
-    const isVitest = !!process.env.VITEST; // ✅ safest way to detect Vitest
+    const demoMatch = process.env.DEMO;
+    const isDemo = command === 'serve' && !!demoMatch;
+    const isVitest = !!process.env.VITEST;
 
     return {
-        root: isDemo ? 'examples/music-autocomplete-demo' : '.',
-        publicDir: isDemo ? '../../public' : 'public',
+        root: isDemo ? `examples/${demoMatch}` : '.',
+        publicDir: path.resolve(__dirname, 'public'),
         server: {
             port: 5173,
         },
         test: {
             include: ['tests/**/*.test.ts'],
-            environment: isVitest ? 'jsdom' : 'node', // ✅ avoid comparing against invalid command
+            environment: isVitest ? 'jsdom' : 'node',
         },
     };
 });

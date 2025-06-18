@@ -49,3 +49,32 @@ describe('Augment', () => {
         expect(result).toEqual(['plain']);
     });
 });
+
+// Augment
+
+describe('Augment utilities', () => {
+    it('adds suffixes', () => {
+        const variants = Augment.addSuffix('hi', ['there']);
+        expect(variants).toContain('hi there');
+    });
+
+    it('adds prefixes', () => {
+        const variants = Augment.addPrefix('hi', ['yo']);
+        expect(variants).toContain('yo hi');
+    });
+
+    it('adds noise', () => {
+        const noisy = Augment.addNoise('hi', 'xyz', 1);
+        expect(noisy).not.toBe('hi');
+    });
+
+    it('mixes text with mixins', () => {
+        const mixed = Augment.mix('hi', ['there']);
+        expect(mixed).toContain('hi there');
+    });
+
+    it('generates multiple variants', () => {
+        const all = Augment.generateVariants('hi', 'abc', { suffixes: ['you'], includeNoise: true });
+        expect(all.length).toBeGreaterThan(1);
+    });
+});

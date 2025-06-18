@@ -66,3 +66,31 @@ describe('UniversalEncoder', () => {
         expect(vec.length).toBe(6); // 2 tokens * 3-char set
     });
 });
+
+// UniversalEncoder Switching
+
+describe('UniversalEncoder Switching', () => {
+    it('encodes input differently in char and token mode with consistent vector sizes', () => {
+        const text = 'hello world';
+
+        const charEncoder = new UniversalEncoder({
+            charSet: 'abcdefghijklmnopqrstuvwxyz ',
+            maxLen: 10,
+            mode: 'char'
+        });
+
+        const tokenEncoder = new UniversalEncoder({
+            charSet: 'abcdefghijklmnopqrstuvwxyz ',
+            maxLen: 10,
+            mode: 'token',
+            tokenizerDelimiter: /\s+/
+        });
+
+        const charVec = charEncoder.encode(text);
+        const tokenVec = tokenEncoder.encode(text);
+
+        expect(charVec.length).toBe(charEncoder.getVectorSize());
+        expect(tokenVec.length).toBe(tokenEncoder.getVectorSize());
+        expect(charVec).not.toEqual(tokenVec); // Ensure mode has effect
+    });
+});

@@ -78,3 +78,68 @@ describe('IO', () => {
         expect(data).toEqual([]);
     });
 });
+
+// IO Utilities
+
+describe('IO utilities', () => {
+    it('parses JSON correctly', () => {
+        const json = '[{"text":"hi","label":"greet"}]';
+        const parsed = IO.importJSON(json);
+        expect(parsed.length).toBe(1);
+        expect(parsed[0].text).toBe('hi');
+    });
+
+    it('parses CSV correctly', () => {
+        const csv = 'text,label\nhello,English';
+        const parsed = IO.importCSV(csv);
+        expect(parsed.length).toBe(1);
+        expect(parsed[0].label).toBe('English');
+    });
+
+    it('parses TSV correctly', () => {
+        const tsv = 'text\tlabel\nbonjour\tFrench';
+        const parsed = IO.importTSV(tsv);
+        expect(parsed.length).toBe(1);
+        expect(parsed[0].label).toBe('French');
+    });
+
+    it('exports to JSON', () => {
+        const data = [{ text: 'hi', label: 'greet' }];
+        const json = IO.exportJSON(data);
+        expect(json).toContain('hi');
+    });
+
+    it('infers schema correctly', () => {
+        const csv = 'text,label\nhello,English';
+        const schema = IO.inferSchemaFromCSV(csv);
+        expect(schema.fields.length).toBeGreaterThan(0);
+        expect(Object.keys(schema.suggestedMapping || {})).toContain('text');
+    });
+});
+
+// IO Round-trip
+
+describe('IO round-trip', () => {
+    const original = [
+        { text: 'hello', label: 'English' },
+        { text: 'bonjour', label: 'French' }
+    ];
+
+    it('CSV round-trip preserves data', () => {
+        const csv = IO.exportCSV(original);
+        const parsed = IO.importCSV(csv);
+        expect(parsed).toEqual(original);
+    });
+
+    it('TSV round-trip preserves data', () => {
+        const tsv = IO.exportTSV(original);
+        const parsed = IO.importTSV(tsv);
+        expect(parsed).toEqual(original);
+    });
+
+    it('JSON round-trip preserves data', () => {
+        const json = IO.exportJSON(original);
+        const parsed = IO.importJSON(json);
+        expect(parsed).toEqual(original);
+    });
+});

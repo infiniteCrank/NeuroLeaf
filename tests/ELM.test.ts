@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { ELM } from '../src/core/ELM';
 import { ELMConfig } from '../src/core/ELMConfig';
+import { EnglishCharPreset, RussianTokenPreset, EmojiHybridPreset } from '../src/config/Presets';
 
 describe('ELM', () => {
     let model: ELM;
@@ -58,5 +59,27 @@ describe('ELM', () => {
         leakyModel.train();
         const result = leakyModel.predict('rock');
         expect(result.length).toBeGreaterThan(0);
+    });
+});
+
+// ELMConfig Presets
+
+describe('ELMConfig Preset Configuration', () => {
+    it('has correct defaults for EnglishCharPreset', () => {
+        expect(EnglishCharPreset.charSet).toContain('a');
+        expect(EnglishCharPreset.useTokenizer).toBe(false);
+        expect(EnglishCharPreset.activation).toBeDefined();
+    });
+
+    it('has correct configuration for RussianTokenPreset', () => {
+        expect(RussianTokenPreset.charSet).toContain('а');
+        expect(RussianTokenPreset.useTokenizer).toBe(true);
+        expect(RussianTokenPreset.tokenizerDelimiter).toBeInstanceOf(RegExp);
+    });
+
+    it('has correct configuration for EmojiHybridPreset', () => {
+        expect(EmojiHybridPreset.charSet).toMatch(/\p{Emoji}/u);
+        expect(EmojiHybridPreset.useTokenizer).toBe(true);
+        expect(EmojiHybridPreset.tokenizerDelimiter).toBeInstanceOf(RegExp);
     });
 });

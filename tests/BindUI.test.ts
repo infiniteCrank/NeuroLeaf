@@ -97,8 +97,52 @@ describe('IntentClassifier Integration', () => {
         });
         classifier.train([{ text: 'hello', label: 'greeting' }]);
 
-        const result = classifier.predict('unknown', 1, 1.1); // Raise threshold to 1.1 to force empty
+        const result = classifier.predict('unknown', 1, 1.1);
         expect(result).toEqual([]);
+    });
+
+    it('produces consistent predictions for same input', () => {
+        const classifier = new IntentClassifier({
+            categories: ['greeting'],
+            hiddenUnits: 10,
+            maxLen: 10,
+            activation: 'relu'
+        });
+        classifier.train([{ text: 'hello', label: 'greeting' }]);
+        const first = classifier.predict('hello');
+        const second = classifier.predict('hello');
+        expect(first[0].label).toBe(second[0].label);
+    });
+
+    it('retraining overwrites previous model state', () => {
+        const classifier = new IntentClassifier({
+            categories: ['greeting', 'farewell'],
+            hiddenUnits: 10,
+            maxLen: 10,
+            activation: 'relu'
+        });
+        classifier.train([{ text: 'hi', label: 'greeting' }]);
+        const initial = classifier.predict('hi')[0];
+        classifier.train([{ text: 'bye', label: 'farewell' }]);
+        const updated = classifier.predict('bye')[0];
+        expect(initial.label).not.toBe(updated.label);
+    });
+
+    it('token-based models still classify correctly', () => {
+        const classifier = new IntentClassifier({
+            categories: ['affirmative', 'negative'],
+            hiddenUnits: 10,
+            maxLen: 10,
+            activation: 'relu',
+            useTokenizer: true,
+            tokenizerDelimiter: /\s+/
+        });
+        classifier.train([
+            { text: 'yes', label: 'affirmative' },
+            { text: 'no', label: 'negative' }
+        ]);
+        const result = classifier.predict('yes')[0];
+        expect(result.label).toBe('affirmative');
     });
 });
 

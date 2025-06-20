@@ -7,36 +7,42 @@ const fill = document.getElementById('langFill') as HTMLDivElement;
 const charSet = 'abcdefghijklmnopqrstuvwxyzçàéèñáéíóúü¿¡ ';
 const config = {
     categories: ['English', 'French', 'Spanish'],
-    hiddenUnits: 50,
+    hiddenUnits: 100,
     maxLen: 30,
     activation: 'relu',
     charSet,
-    useTokenizer: true,
-    tokenizerDelimiter: /\s+/,
+    useTokenizer: false,
 };
 
-fetch('/language_greetings_600.csv')
+fetch('/language_greetings_1500.csv')
     .then(res => res.text())
     .then(csv => {
         const lines = csv
             .split('\n')
             .map(l => l.trim())
             .filter(Boolean)
-            .slice(1); // Skip header
+            .slice(1); // skip header
 
-        const trainingData = lines.map(line => {
+        const rawData = lines.map(line => {
             const [text = '', label = ''] = line.split(',');
             return {
-                text: text.trim().toLowerCase(), // Normalize casing
+                text: text.trim(), // preserve case
                 label: label.trim()
             };
         }).filter(d => d.text && d.label);
 
+        // OPTIONAL: Print counts for sanity check
+        const counts = rawData.reduce((acc, d) => {
+            acc[d.label] = (acc[d.label] || 0) + 1;
+            return acc;
+        }, {} as Record<string, number>);
+        console.log('Label distribution:', counts);
+
         const classifier = new LanguageClassifier(config);
-        classifier.train(trainingData);
+        classifier.train(rawData);
 
         input.addEventListener('input', () => {
-            const typed = input.value.trim().toLowerCase();
+            const typed = input.value.trim();
             if (!typed) {
                 fill.style.width = '0%';
                 fill.textContent = '';
@@ -44,18 +50,22 @@ fetch('/language_greetings_600.csv')
                 return;
             }
 
-            const [result] = classifier.predict(typed, 1);
-            const percent = Math.round(result.prob * 100);
-            fill.style.width = `${percent}%`;
+            const results = classifier.predict(typed, 3); // top 3 for debug
+            const [top] = results;
+            const percent = Math.round(top.prob * 100);
 
+            fill.style.width = `${percent}%`;
             fill.textContent = percent < 40
                 ? '🤔 Not sure'
-                : `${result.label} (${percent}%)`;
+                : `${top.label} (${percent}%)`;
 
             fill.style.background = {
                 English: 'linear-gradient(to right, green, lime)',
                 French: 'linear-gradient(to right, blue, cyan)',
                 Spanish: 'linear-gradient(to right, red, orange)'
-            }[result.label] || '#999';
+            }[top.label] || '#999';
+
+            // Debug
+            console.log('Top predictions:', results);
         });
     });

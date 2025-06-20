@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Chained ELM Language Demo</title>
+  <style>
+    body { font-family: sans-serif; padding: 2rem; max-width: 700px; margin: auto; }
+    input[type="text"] { padding: 0.5rem; width: 100%; font-size: 1.1rem; margin-bottom: 1rem; }
+    .autocomplete-output { font-size: 1.2rem; color: #333; margin-bottom: 1rem; }
+    .confidence-bar { height: 24px; border-radius: 12px; background: #ddd; overflow: hidden; }
+    .confidence-fill { height: 100%; text-align: center; color: white; font-weight: bold; line-height: 24px; }
+    .explanation { margin-top: 2rem; background: #f9f9f9; padding: 1rem; border-left: 4px solid #888; }
+    .step { margin-bottom: 1rem; }
+    .label { font-weight: bold; }
+  </style>
+</head>
+<body>
+  <h2>🔗 Chained ELM Demo: Autocomplete + Language Classifier</h2>
+  <p>Type a greeting in any language (English, French, or Spanish). Our ELM-powered <strong>Autocomplete</strong> will complete your input, then a second ELM <strong>Language Classifier</strong> will detect the language of the completed phrase.</p>
+
+  <input type="text" id="userInput" placeholder="Type a greeting..." />
+  <div class="autocomplete-output" id="autoOutput"></div>
+  <div class="confidence-bar">
+    <div id="langFill" class="confidence-fill" style="width:0%"></div>
+  </div>
+
+  <div class="explanation">
+    <h3>🔍 How It Works</h3>
+    <div class="step"><span class="label">Step 1:</span> You type part of a greeting. Example: <em>"bonj"</em></div>
+    <div class="step"><span class="label">Step 2:</span> Our <strong>Autocomplete ELM</strong> predicts the full phrase, e.g., <em>"bonjour"</em>.</div>
+    <div class="step"><span class="label">Step 3:</span> That full phrase is passed to a <strong>Language Classifier ELM</strong> to determine its language.</div>
+    <div class="step"><span class="label">Step 4:</span> The classifier's confidence is shown as a colored bar (green = English, blue = French, red = Spanish).</div>
+    <p>This showcases how lightweight neural networks can collaborate entirely in the browser—without server calls.</p>
+  </div>
+
+  <script type="module">
+    import { AutoComplete } from '../../src/tasks/AutoComplete';
+    import { LanguageClassifier } from '../../src/tasks/LanguageClassifier';
+    import { IO } from '../../src/utils/IO';
+
+    const input = document.getElementById('userInput');
+    const output = document.getElementById('autoOutput');
+    const fill = document.getElementById('langFill');
+
+    const charSet = 'abcdefghijklmnopqrstuvwxyzçàéèñáéíóúü¿¡ ';
+
+    const acConfig = {
+      charSet,
+      maxLen: 30,
+      hiddenUnits: 40,
+      activation: 'relu',
+      useTokenizer: true,
+      tokenizerDelimiter: /\s+/
+    };
+
+    const langConfig = {
+      categories: ['English', 'French', 'Spanish'],
+      charSet,
+      maxLen: 30,
+      hiddenUnits: 50,
+      activation: 'relu',
+      useTokenizer: true,
+      tokenizerDelimiter: /\s+/
+    };
+
+    Promise.all([
+      fetch('/language_greetings_1500.csv').then(r => r.text()),
+    ]).then(([csv]) => {
+      const rows = csv.split('\n').map(l => l.trim()).filter(Boolean).slice(1);
+      const allData = rows.map(l => {
+        const [text = '', label = ''] = l.split(',');
+        return { text: text.trim().toLowerCase(), label: label.trim() };
+      });
+
+      const ac = new AutoComplete(acConfig);
+      const lang = new LanguageClassifier(langConfig);
+
+      ac.train(allData);
+      lang.train(allData);
+
+      input.addEventListener('input', () => {
+        const val = input.value.trim().toLowerCase();
+        if (!val) {
+          output.textContent = '';
+          fill.style.width = '0%';
+          fill.textContent = '';
+          fill.style.background = '#ccc';
+          return;
+        }
+
+        const [acResult] = ac.predict(val, 1);
+        output.textContent = `🔮 Autocomplete: ${acResult.completion}`;
+
+        const [langResult] = lang.predict(acResult.completion);
+        const percent = Math.round(langResult.prob * 100);
+        fill.style.width = `${percent}%`;
+        fill.textContent = `${langResult.label} (${percent}%)`;
+
+        fill.style.background = {
+          English: 'linear-gradient(to right, green, lime)',
+          French: 'linear-gradient(to right, blue, cyan)',
+          Spanish: 'linear-gradient(to right, red, orange)'
+        }[langResult.label] || '#999';
+      });
+    });
+  </script>
+</body>
+</html>

@@ -360,13 +360,20 @@
     class AutoComplete {
         constructor(categories, options) {
             this.model = new ELM(Object.assign(Object.assign({}, EnglishTokenPreset), { categories }));
-            this.model.train(options.augmentationOptions);
+            // Train the model, safely handling optional augmentationOptions
+            this.model.train(options === null || options === void 0 ? void 0 : options.augmentationOptions);
             bindAutocompleteUI({
                 model: this.model,
                 inputElement: options.inputElement,
                 outputElement: options.outputElement,
                 topK: options.topK
             });
+        }
+        predict(input, topN = 1) {
+            return this.model.predict(input).slice(0, topN).map(p => ({
+                completion: p.label,
+                prob: p.prob
+            }));
         }
         getModel() {
             return this.model;

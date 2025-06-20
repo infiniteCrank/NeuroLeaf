@@ -18,7 +18,9 @@ export class AutoComplete {
         };
     }) {
         this.model = new ELM({ ...EnglishTokenPreset, categories });
-        this.model.train(options.augmentationOptions);
+
+        // Train the model, safely handling optional augmentationOptions
+        this.model.train(options?.augmentationOptions);
 
         bindAutocompleteUI({
             model: this.model,
@@ -26,6 +28,13 @@ export class AutoComplete {
             outputElement: options.outputElement,
             topK: options.topK
         });
+    }
+
+    predict(input: string, topN = 1): { completion: string; prob: number }[] {
+        return this.model.predict(input).slice(0, topN).map(p => ({
+            completion: p.label,
+            prob: p.prob
+        }));
     }
 
     public getModel(): ELM {

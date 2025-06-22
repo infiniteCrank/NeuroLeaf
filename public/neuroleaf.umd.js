@@ -353,6 +353,12 @@
             });
             this.activator = Activations[`${this.config.activation}Matrix`];
         }
+        setCategories(categories) {
+            this.categories = categories;
+        }
+        oneHot(n, index) {
+            return Array.from({ length: n }, (_, i) => (i === index ? 1 : 0));
+        }
         train(trainingData) {
             this.categories = this.config.categories || Array.from(new Set(trainingData.map(d => d.label)));
             const labelToIndex = Object.fromEntries(this.categories.map((label, i) => [label, i]));

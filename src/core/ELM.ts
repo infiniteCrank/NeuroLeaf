@@ -41,6 +41,14 @@ export class ELM {
 
     }
 
+    public setCategories(categories: string[]) {
+        this.categories = categories;
+    }
+
+    private oneHot(n: number, index: number): number[] {
+        return Array.from({ length: n }, (_, i) => (i === index ? 1 : 0));
+    }
+
     train(trainingData: { text: string; label: string }[]) {
         this.categories = this.config.categories || Array.from(new Set(trainingData.map(d => d.label)));
         const labelToIndex = Object.fromEntries(this.categories.map((label, i) => [label, i]));

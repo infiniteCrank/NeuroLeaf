@@ -57,6 +57,10 @@ window.addEventListener('DOMContentLoaded', () => {
 
             // 2. Train Encoder: greeting → vector
             const encoder = new EncoderELM(encoderConfig);
+            const inputVectors = greetings.map(g =>
+                encoder.elm.encoder.normalize(encoder.elm.encoder.encode(g))
+            );
+            encoder.train(greetings, inputVectors);
 
             const dim = 16; // output size of encoder
             const labelMap = new Map();

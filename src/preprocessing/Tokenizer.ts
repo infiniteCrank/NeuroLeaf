@@ -1,27 +1,38 @@
-// Tokenizer.ts - Utility for splitting and tokenizing text inputs
-
 export class Tokenizer {
-    private delimiter: RegExp;
+    private charSet: string[];
+    private charToIndex: Record<string, number>;
+    private maxLen: number;
+    private useTokenizer: boolean;
+    private tokenizerDelimiter: RegExp;
 
-    constructor(customDelimiter?: RegExp) {
-        // Default to splitting on whitespace and punctuation
-        this.delimiter = customDelimiter || /[\s,.;!?()\[\]{}"']+/;
+    constructor(config: {
+        charSet: string;
+        maxLen?: number;
+        useTokenizer?: boolean;
+        tokenizerDelimiter?: RegExp;
+    }) {
+        this.charSet = config.charSet.split('');
+        this.charToIndex = Object.fromEntries(this.charSet.map((c, i) => [c, i]));
+        this.maxLen = config.maxLen ?? 30;
+        this.useTokenizer = config.useTokenizer ?? false;
+        this.tokenizerDelimiter = config.tokenizerDelimiter ?? /\s+/;
     }
 
-    public tokenize(text: string): string[] {
-        return text
-            .trim()
-            .toLowerCase()
-            .split(this.delimiter)
-            .filter(Boolean); // Remove empty tokens
-    }
+    encode(input: string): number[] {
+        const vec = new Array(this.charSet.length * this.maxLen).fill(0);
 
-    public ngrams(tokens: string[], n: number): string[] {
-        if (n <= 0 || tokens.length < n) return [];
-        const result: string[] = [];
-        for (let i = 0; i <= tokens.length - n; i++) {
-            result.push(tokens.slice(i, i + n).join(' '));
+        const tokens = this.useTokenizer
+            ? input.split(this.tokenizerDelimiter)
+            : input.split('');
+
+        for (let i = 0; i < Math.min(tokens.length, this.maxLen); i++) {
+            const token = tokens[i];
+            const index = this.charToIndex[token];
+            if (index !== undefined) {
+                vec[i * this.charSet.length + index] = 1;
+            }
         }
-        return result;
+
+        return vec;
     }
-} 
+}

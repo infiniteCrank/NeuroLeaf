@@ -1,23 +1,25 @@
-// ELM.ts - Core ELM logic with TypeScript types
-
 import { Matrix } from './Matrix';
+import { Tokenizer } from '../preprocessing/Tokenizer';
 import { Activations } from './Activations';
-import { ELMConfig, defaultConfig } from './ELMConfig';
-import { UniversalEncoder } from '../preprocessing/UniversalEncoder';
-import { Augment } from '../utils/Augment';
 
-export interface ELMModel {
-    W: number[][];
-    b: number[][];
-    beta: number[][];
-}
+type ELMConfig = {
+    charSet: string;
+    maxLen: number;
+    hiddenUnits: number;
+    activation: keyof typeof Activations;
+    useTokenizer: boolean;
+    tokenizerDelimiter?: RegExp;
+    categories?: string[];
+    temperature?: number;
+};
 
-export interface PredictResult {
-    label: string;
-    prob: number;
+function normalize(vec: number[]): number[] {
+    const norm = Math.sqrt(vec.reduce((acc, v) => acc + v * v, 0)) || 1;
+    return vec.map(v => v / norm);
 }
 
 export class ELM {
+
     public categories: string[];
     public hiddenUnits: number;
     public maxLen: number;
@@ -45,9 +47,10 @@ export class ELM {
             tokenizerDelimiter: this.tokenizerDelimiter,
             mode: this.useTokenizer ? 'token' : 'char'
         });
+        type ActivationName = 'relu' | 'sigmoid' | 'tanh';
+        type ActivationKey = `${ActivationName}Matrix`;
 
-        this.model = null;
-    }
+        this.activator = Activations[`${this.config.activation}Matrix` as ActivationKey];
 
     public oneHot(n: number, index: number): number[] {
         return Array.from({ length: n }, (_, i) => (i === index ? 1 : 0));
@@ -65,58 +68,48 @@ export class ELM {
         return Array.from({ length: rows }, () =>
             Array.from({ length: cols }, () => Math.random() * 2 - 1)
         );
+
     }
 
     public setCategories(categories: string[]) {
         this.categories = categories;
     }
 
-    public train(augmentationOptions?: {
-        suffixes?: string[];
-        prefixes?: string[];
-        includeNoise?: boolean;
-    }): void {
-        const X: number[][] = [], Y: number[][] = [];
-
-        this.categories.forEach((cat, i) => {
-            const variants = Augment.generateVariants(cat, this.charSet, augmentationOptions);
-            for (const variant of variants) {
-                const vec = this.encoder.normalize(this.encoder.encode(variant));
-                X.push(vec);
-                Y.push(this.oneHot(this.categories.length, i));
-            }
-        });
-
-        const W = this.randomMatrix(this.hiddenUnits, X[0].length);
-        const b = this.randomMatrix(this.hiddenUnits, 1);
-        const tempH = Matrix.multiply(X, Matrix.transpose(W));
-        const activationFn = Activations.get(this.activation);
-        const H = Activations.apply(tempH.map(row =>
-            row.map((val, j) => val + b[j][0])
-        ), activationFn);
-
-        const H_pinv = this.pseudoInverse(H);
-        const beta = Matrix.multiply(H_pinv, Y);
-        this.model = { W, b, beta };
+    private oneHot(n: number, index: number): number[] {
+        return Array.from({ length: n }, (_, i) => (i === index ? 1 : 0));
     }
 
-    public predict(text: string, topK: number = 5): PredictResult[] {
-        if (!this.model) throw new Error("Model not trained.");
+    train(trainingData: { text: string; label: string }[]) {
+        this.categories = this.config.categories || Array.from(new Set(trainingData.map(d => d.label)));
+        const labelToIndex = Object.fromEntries(this.categories.map((label, i) => [label, i]));
 
-        const vec = this.encoder.normalize(this.encoder.encode(text));
-        const { W, b, beta } = this.model;
-        const tempH = Matrix.multiply([vec], Matrix.transpose(W));
-        const activationFn = Activations.get(this.activation);
-        const H = Activations.apply(tempH.map(row =>
-            row.map((val, j) => val + b[j][0])
-        ), activationFn);
+        const X = trainingData.map(d => normalize(this.encoder.encode(d.text)));
+        const Y = trainingData.map(d => {
+            const row = Array(this.categories.length).fill(0);
+            row[labelToIndex[d.label]] = 1;
+            return row;
+        });
 
-        const rawOutput = Matrix.multiply(H, beta)[0];
-        const probs = Activations.softmax(rawOutput);
+        const Xmat = Matrix.from2D(X).transpose();
+        const H = this.activator(Matrix.random(this.config.hiddenUnits, Xmat.rows).dot(Xmat));
+        this.hiddenMatrix = H;
 
-        return probs
-            .map((p, i) => ({ label: this.categories[i], prob: p }))
-            .sort((a, b) => b.prob - a.prob)
-            .slice(0, topK);
+        const Ymat = Matrix.from2D(Y).transpose();
+        const beta = Matrix.inverse(H.transpose().dot(H)).dot(H.transpose()).dot(Ymat);
+        this.beta = beta;
+    }
+
+    predict(input: string): { label: string; prob: number }[] {
+        const x = normalize(this.encoder.encode(input));
+        const h = this.activator(this.hiddenMatrix.dot(Matrix.from2D([x]).transpose()));
+        const out = this.beta.transpose().dot(h).toArray().map(r => r[0]);
+
+        const temp = this.config.temperature || 1;
+        const exps = out.map(v => Math.exp(v / temp));
+        const sum = exps.reduce((a, b) => a + b, 0);
+        const softmax = exps.map(v => v / sum);
+
+        return this.categories.map((label, i) => ({ label, prob: softmax[i] }))
+            .sort((a, b) => b.prob - a.prob);
     }
 }

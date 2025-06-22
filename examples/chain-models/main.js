@@ -1,5 +1,5 @@
 // @ts-ignore
-const { LanguageClassifier, AutoComplete, IO } = window.NeuroLeaf;
+const { LanguageClassifier } = window.NeuroLeaf;
 
 window.addEventListener('DOMContentLoaded', () => {
     const input = document.getElementById('userInput');
@@ -8,66 +8,80 @@ window.addEventListener('DOMContentLoaded', () => {
 
     const charSet = 'abcdefghijklmnopqrstuvwxyzçàéèñáéíóúü¿¡ ';
 
-    const acConfig = {
-        charSet,
-        maxLen: 30,
-        hiddenUnits: 40,
-        activation: 'relu',
-        useTokenizer: true,
-        tokenizerDelimiter: /\s+/
-    };
-
     const langConfig = {
         categories: ['English', 'French', 'Spanish'],
         charSet,
-        maxLen: 30,
-        hiddenUnits: 50,
-        activation: 'relu',
-        useTokenizer: true,
-        tokenizerDelimiter: /\s+/
+        maxLen: 40,
+        hiddenUnits: 120,
+        activation: 'sigmoid',
+        useTokenizer: false
     };
 
-    fetch('/language_greetings_1500.csv')
-        .then(r => r.text())
-        .then(csv => {
-            const rows = csv.split('\n').map(l => l.trim()).filter(Boolean).slice(1);
-            const allData = rows.map(l => {
-                const [text = '', label = ''] = l.split(',');
-                return { text: text.trim().toLowerCase(), label: label.trim() };
-            });
+    const hardcodedData = [
+        // English
+        { text: 'hi', label: 'English' },
+        { text: 'hello', label: 'English' },
+        { text: 'hey', label: 'English' },
+        { text: 'good morning', label: 'English' },
+        { text: 'good evening', label: 'English' },
+        { text: 'howdy', label: 'English' },
+        { text: 'what’s up', label: 'English' },
+        { text: 'greetings', label: 'English' },
+        { text: 'good day', label: 'English' },
+        { text: 'yo', label: 'English' },
 
-            const uniqueCategories = [...new Set(allData.map(row => row.text))];
-            const ac = new AutoComplete(uniqueCategories, {
-                ...acConfig,
-                inputElement: input,
-                outputElement: output
-            });
-            const lang = new LanguageClassifier(langConfig);
-            lang.train(allData);
+        // French
+        { text: 'bonjour', label: 'French' },
+        { text: 'salut', label: 'French' },
+        { text: 'coucou', label: 'French' },
+        { text: 'bonsoir', label: 'French' },
+        { text: 'bonne journée', label: 'French' },
+        { text: 'allô', label: 'French' },
+        { text: 'bienvenue', label: 'French' },
+        { text: 'bon matin', label: 'French' },
+        { text: 'ça va', label: 'French' },
+        { text: 'rebonjour', label: 'French' },
 
-            input.addEventListener('input', () => {
-                const val = input.value.trim().toLowerCase();
-                if (!val) {
-                    output.textContent = '';
-                    fill.style.width = '0%';
-                    fill.textContent = '';
-                    fill.style.background = '#ccc';
-                    return;
-                }
+        // Spanish
+        { text: 'hola', label: 'Spanish' },
+        { text: 'buenos días', label: 'Spanish' },
+        { text: 'buenas tardes', label: 'Spanish' },
+        { text: 'buenas noches', label: 'Spanish' },
+        { text: 'qué tal', label: 'Spanish' },
+        { text: 'cómo estás', label: 'Spanish' },
+        { text: 'saludos', label: 'Spanish' },
+        { text: 'ey', label: 'Spanish' },
+        { text: 'buen día', label: 'Spanish' },
+        { text: 'qué onda', label: 'Spanish' }
+    ];
 
-                const [acResult] = ac.predict(val, 1);
-                output.textContent = `🔮 Autocomplete: ${acResult.completion}`;
+    const lang = new LanguageClassifier(langConfig);
+    lang.train(hardcodedData);
 
-                const [langResult] = lang.predict(acResult.completion);
-                const percent = Math.round(langResult.prob * 100);
-                fill.style.width = `${percent}%`;
-                fill.textContent = `${langResult.label} (${percent}%)`;
+    input.addEventListener('input', () => {
+        const val = input.value.trim().toLowerCase();
+        if (!val) {
+            output.textContent = '';
+            fill.style.width = '0%';
+            fill.textContent = '';
+            fill.style.background = '#ccc';
+            return;
+        }
 
-                fill.style.background = {
-                    English: 'linear-gradient(to right, green, lime)',
-                    French: 'linear-gradient(to right, blue, cyan)',
-                    Spanish: 'linear-gradient(to right, red, orange)'
-                }[langResult.label] || '#999';
-            });
-        });
-})
+        output.textContent = `🔍 Testing: "${val}"`;
+
+        const langResults = lang.predict(val);
+        console.log('Top language predictions:', langResults);
+
+        const best = langResults[0];
+        const percent = Math.round(best.prob * 100);
+        fill.style.width = `${percent}%`;
+        fill.textContent = `${best.label} (${percent}%)`;
+
+        fill.style.background = {
+            English: 'linear-gradient(to right, green, lime)',
+            French: 'linear-gradient(to right, blue, cyan)',
+            Spanish: 'linear-gradient(to right, red, orange)'
+        }[best.label] || '#999';
+    });
+});

@@ -25,7 +25,7 @@ export class ELM {
     public charSet: string;
     public useTokenizer: boolean;
     public tokenizerDelimiter?: RegExp;
-    private encoder: UniversalEncoder;
+    public encoder: UniversalEncoder;
     private model: ELMModel | null;
 
     constructor(config: ELMConfig & { charSet?: string; useTokenizer?: boolean; tokenizerDelimiter?: RegExp }) {
@@ -49,7 +49,7 @@ export class ELM {
         this.model = null;
     }
 
-    private oneHot(n: number, index: number): number[] {
+    public oneHot(n: number, index: number): number[] {
         return Array.from({ length: n }, (_, i) => (i === index ? 1 : 0));
     }
 

@@ -380,6 +380,54 @@
         }
     }
 
+    /**
+     * EncoderELM: Uses an ELM to convert strings into dense feature vectors.
+     */
+    class EncoderELM {
+        constructor(config) {
+            if (typeof config.hiddenUnits !== 'number') {
+                throw new Error('EncoderELM requires config.hiddenUnits to be defined as a number');
+            }
+            if (!config.activation) {
+                throw new Error('EncoderELM requires config.activation to be defined');
+            }
+            this.config = Object.assign(Object.assign({}, config), { categories: [], useTokenizer: true });
+            this.elm = new ELM(this.config);
+        }
+        /**
+         * Custom training method for string → vector encoding.
+         */
+        train(inputStrings, targetVectors) {
+            const X = inputStrings.map(s => this.elm.encoder.normalize(this.elm.encoder.encode(s)));
+            const Y = targetVectors;
+            const hiddenUnits = this.config.hiddenUnits;
+            const inputDim = X[0].length;
+            const W = this.elm['randomMatrix'](hiddenUnits, inputDim);
+            const b = this.elm['randomMatrix'](hiddenUnits, 1);
+            const tempH = Matrix.multiply(X, Matrix.transpose(W));
+            const activationFn = Activations.get(this.config.activation);
+            const H = Activations.apply(tempH.map(row => row.map((val, j) => val + b[j][0])), activationFn);
+            const H_pinv = this.elm['pseudoInverse'](H);
+            const beta = Matrix.multiply(H_pinv, Y);
+            this.elm['model'] = { W, b, beta };
+        }
+        /**
+         * Encodes an input string into a dense feature vector using the trained model.
+         */
+        encode(text) {
+            const vec = this.elm.encoder.normalize(this.elm.encoder.encode(text));
+            const model = this.elm['model'];
+            if (!model) {
+                throw new Error('EncoderELM model has not been trained yet.');
+            }
+            const { W, b, beta } = model;
+            const tempH = Matrix.multiply([vec], Matrix.transpose(W));
+            const activationFn = Activations.get(this.config.activation);
+            const H = Activations.apply(tempH.map(row => row.map((val, j) => val + b[j][0])), activationFn);
+            return Matrix.multiply(H, beta)[0];
+        }
+    }
+
     // intentClassifier.ts - ELM-based intent classification engine
     class IntentClassifier {
         constructor(config) {
@@ -549,12 +597,50 @@
         predict(text, topK = 3) {
             return this.elm.predict(text, topK);
         }
+        /**
+         * Train the classifier using already-encoded vectors.
+         * Each vector must be paired with its label.
+         */
+        trainVectors(data) {
+            const categories = [...new Set(data.map(d => d.label))];
+            this.elm.setCategories(categories);
+            const X = data.map(d => d.vector);
+            const Y = data.map(d => this.elm.oneHot(categories.length, categories.indexOf(d.label)));
+            const W = this.elm['randomMatrix'](this.config.hiddenUnits, X[0].length);
+            const b = this.elm['randomMatrix'](this.config.hiddenUnits, 1);
+            const tempH = Matrix.multiply(X, Matrix.transpose(W));
+            const activationFn = Activations.get(this.config.activation);
+            const H = Activations.apply(tempH.map(row => row.map((val, j) => val + b[j][0])), activationFn);
+            const H_pinv = this.elm['pseudoInverse'](H);
+            const beta = Matrix.multiply(H_pinv, Y);
+            this.elm['model'] = { W, b, beta };
+        }
+        /**
+         * Predict language directly from a dense vector representation.
+         */
+        predictFromVector(vec, topK = 1) {
+            const model = this.elm['model'];
+            if (!model) {
+                throw new Error('EncoderELM model has not been trained yet.');
+            }
+            const { W, b, beta } = model;
+            const tempH = Matrix.multiply([vec], Matrix.transpose(W));
+            const activationFn = Activations.get(this.config.activation);
+            const H = Activations.apply(tempH.map(row => row.map((val, j) => val + b[j][0])), activationFn);
+            const rawOutput = Matrix.multiply(H, beta)[0];
+            const probs = Activations.softmax(rawOutput);
+            return probs
+                .map((p, i) => ({ label: this.elm.categories[i], prob: p }))
+                .sort((a, b) => b.prob - a.prob)
+                .slice(0, topK);
+        }
     }
 
     exports.Activations = Activations;
     exports.Augment = Augment;
     exports.AutoComplete = AutoComplete;
     exports.ELM = ELM;
+    exports.EncoderELM = EncoderELM;
     exports.IO = IO;
     exports.IntentClassifier = IntentClassifier;
     exports.LanguageClassifier = LanguageClassifier;

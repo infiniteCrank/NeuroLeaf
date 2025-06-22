@@ -1,5 +1,6 @@
 export * from './core/ELM';
 export * from './tasks/AutoComplete';
+export * from './tasks/EncoderELM';
 export * from './tasks/IntentClassifier';
 export * from './tasks/LanguageClassifier';
 export * from './utils/IO';

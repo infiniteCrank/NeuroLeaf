@@ -17,6 +17,7 @@
     "dev:music": "DEMO=music-autocomplete-demo vite",
     "dev:lang": "DEMO=language-awareness-demo vite",
     "dev:chain": "DEMO=chain-models vite",
+    "dev:chain2": "DEMO=chain-with-encoder vite",
     "test": "vitest"
   },
   "repository": {

@@ -322,6 +322,21 @@
                 .sort((a, b) => b.prob - a.prob)
                 .slice(0, topK);
         }
+        predictFromVector(inputVec, topK = 5) {
+            if (!this.model)
+                throw new Error("Model not trained.");
+            const { W, b, beta } = this.model;
+            const tempH = Matrix.multiply(inputVec, Matrix.transpose(W));
+            const activationFn = Activations.get(this.activation);
+            const H = Activations.apply(tempH.map(row => row.map((val, j) => val + b[j][0])), activationFn);
+            return Matrix.multiply(H, beta).map(rawOutput => {
+                const probs = Activations.softmax(rawOutput);
+                return probs
+                    .map((p, i) => ({ label: this.categories[i], prob: p }))
+                    .sort((a, b) => b.prob - a.prob)
+                    .slice(0, topK);
+            });
+        }
     }
 
     // BindUI.ts - Utility to bind ELM model to HTML inputs and outputs

@@ -108,18 +108,25 @@
         activation: 'relu'
     };
 
-    // Tokenizer.ts - Utility for splitting and tokenizing text inputs
     class Tokenizer {
         constructor(customDelimiter) {
-            // Default to splitting on whitespace and punctuation
             this.delimiter = customDelimiter || /[\s,.;!?()\[\]{}"']+/;
         }
         tokenize(text) {
+            if (typeof text !== 'string') {
+                console.warn('[Tokenizer] Expected a string, got:', typeof text, text);
+                try {
+                    text = String(text !== null && text !== void 0 ? text : '');
+                }
+                catch (_a) {
+                    return [];
+                }
+            }
             return text
                 .trim()
                 .toLowerCase()
                 .split(this.delimiter)
-                .filter(Boolean); // Remove empty tokens
+                .filter(Boolean);
         }
         ngrams(tokens, n) {
             if (n <= 0 || tokens.length < n)
@@ -673,6 +680,9 @@
          * Train the ELM using combined features and labels
          */
         train(encoded, metas, labels) {
+            if (!this.config.hiddenUnits || !this.config.activation) {
+                throw new Error("FeatureCombinerELM: config.hiddenUnits or activation is undefined.");
+            }
             const X = encoded.map((vec, i) => FeatureCombinerELM.combineFeatures(vec, metas[i]));
             const categories = [...new Set(labels)];
             this.elm.setCategories(categories);

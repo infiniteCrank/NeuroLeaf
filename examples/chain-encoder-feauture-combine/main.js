@@ -1,12 +1,12 @@
 // @ts-ignore
-const { AutoComplete, EncoderELM, FeatureCombinerELM, RefinerELM } = window.NeuroLeaf;
+const { AutoComplete, EncoderELM, CharacterLangEncoderELM, FeatureCombinerELM, RefinerELM } = window.NeuroLeaf;
 
 window.addEventListener('DOMContentLoaded', () => {
     const input = document.getElementById('userInput');
     const output = document.getElementById('autoOutput');
     const fill = document.getElementById('langFill');
 
-    const charSet = 'abcdefghijklmnopqrstuvwxyzçàéèñáéíóúü¿¡ ';
+    const charSet = 'abcdefghijklmnopqrstuvwxyzçàéèñáíóúü¿¡ ';
     const maxLen = 30;
 
     const acConfig = {
@@ -20,7 +20,7 @@ window.addEventListener('DOMContentLoaded', () => {
     const encoderConfig = {
         charSet,
         maxLen,
-        hiddenUnits: 32,
+        hiddenUnits: 64,
         activation: 'relu',
         useTokenizer: true
     };
@@ -28,7 +28,7 @@ window.addEventListener('DOMContentLoaded', () => {
     const combinerConfig = {
         charSet,
         maxLen,
-        hiddenUnits: 64,
+        hiddenUnits: 128,
         activation: 'relu',
         useTokenizer: false
     };
@@ -45,10 +45,19 @@ window.addEventListener('DOMContentLoaded', () => {
         .then(r => r.text())
         .then(csv => {
             const rows = csv.split('\n').map(l => l.trim()).filter(Boolean).slice(1);
-            const allData = rows.map(l => {
-                const [text = '', label = ''] = l.split(',');
-                return { text: text.trim().toLowerCase(), label: label.trim() };
+            const allData = rows.map((line, i) => {
+                const parts = line.split(',');
+                const text = (parts[0] || '').toString().trim().toLowerCase();
+                const label = (parts[1] || '').toString().trim();
+                return { text, label };
+            }).filter(d => d.text && d.label);
+
+            const conflicts = {};
+            allData.forEach(({ text, label }) => {
+                if (!conflicts[text]) conflicts[text] = new Set();
+                conflicts[text].add(label);
             });
+            console.log("⚠️ Conflicts:", Object.entries(conflicts).filter(([k, v]) => v.size > 1));
 
             const greetings = allData.map(d => d.text);
             const labels = allData.map(d => d.label);
@@ -59,14 +68,46 @@ window.addEventListener('DOMContentLoaded', () => {
                 outputElement: output
             });
 
-            const encoder = new EncoderELM(encoderConfig);
-            const vectors = greetings.map(g => encoder.elm.encoder.normalize(encoder.elm.encoder.encode(g)));
-            encoder.train(greetings, vectors);
+            // const encoder = new EncoderELM(encoderConfig); // Removed due to NaN issues
+            const langEncoder = new CharacterLangEncoderELM(encoderConfig);
 
-            const metas = greetings.map(g => [
+            langEncoder.train(greetings, labels);     // ✅ train the CharacterLangEncoderELM
+
+            function normalize(vec) {
+                const mag = Math.sqrt(vec.reduce((s, x) => s + x * x, 0)) || 1;
+                return vec.map(x => x / mag);
+            }
+
+            function normalizeMeta(meta) {
+                const [len, diversity, vowels, punct] = meta;
+                return [
+                    len / maxLen,
+                    diversity,
+                    vowels,
+                    punct
+                ];
+            }
+
+            const vectors = greetings.map(g => {
+                const langVec = normalize(langEncoder.encode(g));
+                return langVec;
+            });
+
+            const labelCounts = labels.reduce((acc, label) => {
+                acc[label] = (acc[label] || 0) + 1;
+                return acc;
+            }, {});
+            console.log('📊 Label Distribution:', labelCounts);
+
+
+            const metas = greetings.map(g => normalizeMeta([
                 g.length,
-                new Set(g).size / g.length
-            ]);
+                new Set(g).size / g.length,
+                (g.match(/[aeiou]/g) || []).length / g.length,
+                (g.match(/[.,!?]/g) || []).length / g.length
+            ]));
+
+            console.log('🧪 Sample Combined Input:', FeatureCombinerELM.combineFeatures(vectors[0], metas[0]));
 
             const combiner = new FeatureCombinerELM(combinerConfig);
             combiner.train(vectors, metas, labels);
@@ -75,21 +116,22 @@ window.addEventListener('DOMContentLoaded', () => {
                 FeatureCombinerELM.combineFeatures(vec, metas[i])
             );
 
-            // Evaluate combiner confidence
             const combinerResults = vectors.map((vec, i) =>
                 combiner.predict(vec, metas[i])[0]
             );
 
+            const LOW_CONFIDENCE_THRESHOLD = 0.8;
             const lowConfidence = combinerResults
                 .map((res, i) => ({
                     vector: combinedInputs[i],
+                    actual: labels[i],
+                    predicted: res.label,
                     label: labels[i],
                     prob: res.prob
                 }))
-                .filter(d => d.prob < 0.6);
+                .filter(d => d.prob < LOW_CONFIDENCE_THRESHOLD || d.predicted !== d.actual);
 
             const refiner = new RefinerELM(refinerConfig);
-
             if (lowConfidence.length > 0) {
                 refiner.train(
                     lowConfidence.map(d => d.vector),
@@ -114,20 +156,25 @@ window.addEventListener('DOMContentLoaded', () => {
                 const prediction = acResult.completion;
                 output.textContent = `🔮 Autocomplete: ${prediction}`;
 
-                const encoded = encoder.encode(prediction);
-                const meta = [
-                    val.length,
-                    new Set(val).size / val.length
-                ];
+                const langVec = normalize(langEncoder.encode(prediction));
+                const vec = langVec;
 
-                const combinedVec = FeatureCombinerELM.combineFeatures(encoded, meta);
-                const [combinerResult] = combiner.predict(encoded, meta);
+                const meta = normalizeMeta([
+                    val.length,
+                    new Set(val).size / val.length,
+                    (val.match(/[aeiou]/g) || []).length / val.length,
+                    (val.match(/[.,!?]/g) || []).length / val.length
+                ]);
+
+                const combinedVec = FeatureCombinerELM.combineFeatures(vec, meta);
+                const [combinerResult] = combiner.predict(vec, meta);
 
                 let finalResult = combinerResult;
+                let refined;
 
                 if (combinerResult.prob < 0.6) {
                     try {
-                        const [refined] = refiner.predict(combinedVec);
+                        [refined] = refiner.predict(combinedVec);
                         if (refined) {
                             finalResult = refined;
                             console.log('🔁 Used Refiner');
@@ -137,16 +184,10 @@ window.addEventListener('DOMContentLoaded', () => {
                     }
                 }
 
-                console.log('🧪 Combiner:', combinerResult);
-                console.log('🧪 Refiner:', refiner.predict(combinedVec)[0]);
-
                 const percent = Math.round(finalResult.prob * 100);
                 fill.style.width = `${percent}%`;
-
-                fill.textContent = `${finalResult.label} (${percent}%)`;
-                fill.dataset.model = finalResult === combinerResult ? 'combiner' : 'refiner';
                 fill.textContent = `${finalResult.label} (${percent}%)` + (finalResult === combinerResult ? ' [C]' : ' [R]');
-
+                fill.dataset.model = finalResult === combinerResult ? 'combiner' : 'refiner';
                 fill.style.background = {
                     English: 'linear-gradient(to right, green, lime)',
                     French: 'linear-gradient(to right, blue, cyan)',

@@ -51,7 +51,7 @@
 </head>
 <body>
   <h1>🔗 Chained ELMs + Feature Combiner</h1>
-  <p>This demo uses multiple ELMs to classify the language of a greeting with greater accuracy by combining learned features and metadata.</p>
+  <p>This demo uses multiple ELMs to classify the language of a greeting by combining dense character-level features with normalized input metadata.</p>
 
   <input type="text" id="userInput" placeholder="Type a greeting..." />
   <div class="autocomplete-output" id="autoOutput"></div>
@@ -60,13 +60,19 @@
   </div>
 
   <div class="explanation">
-    <h3>🔍 Pipeline:</h3>
+    <h3>🔍 Current Architecture:</h3>
     <ol>
-      <li>AutoComplete ELM completes the greeting.</li>
-      <li>Encoder ELM encodes it into a dense vector.</li>
-      <li>Metadata like input length and diversity is extracted.</li>
-      <li>FeatureCombiner ELM uses all of this to classify the language.</li>
+      <li><strong>AutoComplete ELM</strong> suggests the full greeting from partial input.</li>
+      <li><strong>CharacterLangEncoderELM</strong> encodes the autocompleted greeting into a normalized vector representation.</li>
+      <li><strong>Metadata</strong> like input length, character diversity, vowel ratio, and punctuation ratio is extracted and normalized.</li>
+      <li><strong>FeatureCombinerELM</strong> combines the vector + metadata to classify the language.</li>
+      <li>If the combiner is uncertain or wrong, <strong>RefinerELM</strong> corrects low-confidence predictions.</li>
     </ol>
+    <p>
+      The display includes model source:
+      <code>[C]</code> = Combiner, <code>[R]</code> = Refiner,
+      <code>[AC]</code> = Autocomplete input used.
+    </p>
   </div>
 
   <script src="/neuroleaf.umd.js"></script>

@@ -651,14 +651,129 @@
         }
     }
 
+    class FeatureCombinerELM {
+        constructor(config) {
+            if (typeof config.hiddenUnits !== 'number') {
+                throw new Error('FeatureCombinerELM requires hiddenUnits');
+            }
+            if (!config.activation) {
+                throw new Error('FeatureCombinerELM requires activation');
+            }
+            this.config = Object.assign(Object.assign({}, config), { categories: [], useTokenizer: false // this ELM takes numeric vectors
+             });
+            this.elm = new ELM(this.config);
+        }
+        /**
+         * Combines encoder vector and metadata into one input vector
+         */
+        static combineFeatures(encodedVec, meta) {
+            return [...encodedVec, ...meta];
+        }
+        /**
+         * Train the ELM using combined features and labels
+         */
+        train(encoded, metas, labels) {
+            const X = encoded.map((vec, i) => FeatureCombinerELM.combineFeatures(vec, metas[i]));
+            const categories = [...new Set(labels)];
+            this.elm.setCategories(categories);
+            const Y = labels.map(label => this.elm.oneHot(categories.length, categories.indexOf(label)));
+            const W = this.elm['randomMatrix'](this.config.hiddenUnits, X[0].length);
+            const b = this.elm['randomMatrix'](this.config.hiddenUnits, 1);
+            const tempH = Matrix.multiply(X, Matrix.transpose(W));
+            const activationFn = Activations.get(this.config.activation);
+            const H = Activations.apply(tempH.map(row => row.map((val, j) => val + b[j][0])), activationFn);
+            const H_pinv = this.elm['pseudoInverse'](H);
+            const beta = Matrix.multiply(H_pinv, Y);
+            this.elm['model'] = { W, b, beta };
+        }
+        /**
+         * Predict from combined input and metadata
+         */
+        predict(encodedVec, meta, topK = 1) {
+            const input = [FeatureCombinerELM.combineFeatures(encodedVec, meta)];
+            const [results] = this.elm.predictFromVector(input, topK);
+            return results;
+        }
+    }
+
+    class RefinerELM {
+        constructor(config) {
+            this.config = Object.assign(Object.assign({}, config), { useTokenizer: false, categories: [] });
+            this.elm = new ELM(this.config);
+        }
+        train(inputs, labels) {
+            const categories = [...new Set(labels)];
+            this.elm.setCategories(categories);
+            const Y = labels.map(label => this.elm.oneHot(categories.length, categories.indexOf(label)));
+            const W = this.elm['randomMatrix'](this.config.hiddenUnits, inputs[0].length);
+            const b = this.elm['randomMatrix'](this.config.hiddenUnits, 1);
+            const tempH = Matrix.multiply(inputs, Matrix.transpose(W));
+            const activationFn = Activations.get(this.config.activation);
+            const H = Activations.apply(tempH.map(row => row.map((val, j) => val + b[j][0])), activationFn);
+            const H_pinv = this.elm['pseudoInverse'](H);
+            const beta = Matrix.multiply(H_pinv, Y);
+            this.elm['model'] = { W, b, beta };
+        }
+        predict(vec) {
+            const input = [vec];
+            const model = this.elm['model'];
+            if (!model) {
+                throw new Error('EncoderELM model has not been trained yet.');
+            }
+            const { W, b, beta } = model;
+            const tempH = Matrix.multiply(input, Matrix.transpose(W));
+            const activationFn = Activations.get(this.config.activation);
+            const H = Activations.apply(tempH.map(row => row.map((val, j) => val + b[j][0])), activationFn);
+            const rawOutput = Matrix.multiply(H, beta)[0];
+            const probs = Activations.softmax(rawOutput);
+            return probs
+                .map((p, i) => ({ label: this.elm.categories[i], prob: p }))
+                .sort((a, b) => b.prob - a.prob);
+        }
+    }
+
+    class CharacterLangEncoderELM {
+        constructor(config) {
+            if (!config.hiddenUnits || !config.activation) {
+                throw new Error("CharacterLangEncoderELM requires defined hiddenUnits and activation");
+            }
+            this.config = Object.assign(Object.assign({}, config), { useTokenizer: true });
+            this.elm = new ELM(this.config);
+        }
+        train(inputStrings, labels) {
+            const categories = [...new Set(labels)];
+            this.elm.setCategories(categories);
+            this.elm.train(); // assumes encoder + categories are set
+        }
+        /**
+         * Returns dense vector (embedding) rather than label prediction
+         */
+        encode(text) {
+            const vec = this.elm.encoder.normalize(this.elm.encoder.encode(text));
+            const model = this.elm['model'];
+            if (!model) {
+                throw new Error('EncoderELM model has not been trained yet.');
+            }
+            const { W, b, beta } = model;
+            const tempH = Matrix.multiply([vec], Matrix.transpose(W));
+            const activationFn = Activations.get(this.config.activation);
+            const H = Activations.apply(tempH.map(row => row.map((val, j) => val + b[j][0])), activationFn);
+            // dense feature vector
+            return Matrix.multiply(H, beta)[0];
+        }
+    }
+
     exports.Activations = Activations;
     exports.Augment = Augment;
     exports.AutoComplete = AutoComplete;
+    exports.CharacterLangEncoderELM = CharacterLangEncoderELM;
     exports.ELM = ELM;
     exports.EncoderELM = EncoderELM;
+    exports.FeatureCombinerELM = FeatureCombinerELM;
     exports.IO = IO;
     exports.IntentClassifier = IntentClassifier;
     exports.LanguageClassifier = LanguageClassifier;
+    exports.RefinerELM = RefinerELM;
     exports.TextEncoder = TextEncoder;
     exports.Tokenizer = Tokenizer;
     exports.UniversalEncoder = UniversalEncoder;

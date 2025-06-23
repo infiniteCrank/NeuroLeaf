@@ -35,6 +35,10 @@ export class FeatureCombinerELM {
      * Train the ELM using combined features and labels
      */
     train(encoded: number[][], metas: number[][], labels: string[]): void {
+        if (!this.config.hiddenUnits || !this.config.activation) {
+            throw new Error("FeatureCombinerELM: config.hiddenUnits or activation is undefined.");
+        }
+
         const X = encoded.map((vec, i) =>
             FeatureCombinerELM.combineFeatures(vec, metas[i])
         );

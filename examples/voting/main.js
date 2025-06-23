@@ -1,5 +1,5 @@
 // @ts-ignore
-const { AutoComplete, EncoderELM, CharacterLangEncoderELM, FeatureCombinerELM, RefinerELM, ConfidenceClassifierELM, LanguageClassifier, VotingClassifierELM } = window.NeuroLeaf;
+const { AutoComplete, EncoderELM, CharacterLangEncoderELM, FeatureCombinerELM, RefinerELM, ConfidenceClassifierELM, LanguageClassifier } = window.NeuroLeaf;
 
 window.addEventListener('DOMContentLoaded', () => {
     const input = document.getElementById('userInput');
@@ -213,7 +213,6 @@ window.addEventListener('DOMContentLoaded', () => {
 
                 const encoded = encoder.encode(acResult.completion);
                 const [langResult] = classifier.predictFromVector(encoded)
-                console.log(langResult)
 
                 const langVec = normalize(langEncoder.encode(prediction));
                 const vec = langVec;
@@ -233,12 +232,25 @@ window.addEventListener('DOMContentLoaded', () => {
 
                 const [confidenceResult] = confidenceClassifier.predict(vec, meta);
                 const isUncertain = confidenceResult.label === 'low';
-
+                console.log("***************************LANG RESULTS************************")
+                console.log(langResult)
+                console.log("***************************COMBINER RESULTS************************")
+                console.log(combinerResult)
                 if (combinerResult.prob < 0.6 || isUncertain) {
                     try {
                         [refined] = refiner.predict(combinedVec);
+                        console.log("***************************Refined RESULTS************************")
+                        console.log(refined)
                         if (refined) {
-                            finalResult = refined;
+                            if (langResult.label === combinerResult.label) {
+                                finalResult = {
+                                    label: langResult.label,
+                                    prob: (langResult.prob + combinerResult.prob) / 2,
+                                }
+                            } else {
+                                finalResult = refined;
+                            }
+
                             console.log('🔁 Used Refiner');
                         }
                     } catch (err) {

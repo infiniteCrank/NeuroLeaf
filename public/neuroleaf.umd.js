@@ -706,6 +706,32 @@
         }
     }
 
+    /**
+     * ConfidenceClassifierELM is a lightweight ELM wrapper
+     * designed to classify whether an input prediction is likely to be high or low confidence.
+     * It uses the same input format as FeatureCombinerELM (vector + meta).
+     */
+    class ConfidenceClassifierELM {
+        constructor(config) {
+            this.config = config;
+            this.elm = new ELM(Object.assign(Object.assign({}, config), { categories: ['low', 'high'], useTokenizer: false }));
+        }
+        train(vectors, metas, labels) {
+            vectors.map((vec, i) => FeatureCombinerELM.combineFeatures(vec, metas[i]));
+            const examples = vectors.map((vec, i) => ({
+                input: FeatureCombinerELM.combineFeatures(vec, metas[i]),
+                label: labels[i]
+            }));
+            // Explicitly cast to match expected training format for ELM
+            this.elm.train(examples);
+        }
+        predict(vec, meta) {
+            const input = FeatureCombinerELM.combineFeatures(vec, meta);
+            const inputStr = JSON.stringify(input);
+            return this.elm.predict(inputStr, 1);
+        }
+    }
+
     class RefinerELM {
         constructor(config) {
             this.config = Object.assign(Object.assign({}, config), { useTokenizer: false, categories: [] });
@@ -777,6 +803,7 @@
     exports.Augment = Augment;
     exports.AutoComplete = AutoComplete;
     exports.CharacterLangEncoderELM = CharacterLangEncoderELM;
+    exports.ConfidenceClassifierELM = ConfidenceClassifierELM;
     exports.ELM = ELM;
     exports.EncoderELM = EncoderELM;
     exports.FeatureCombinerELM = FeatureCombinerELM;

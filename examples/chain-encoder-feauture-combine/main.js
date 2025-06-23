@@ -1,5 +1,5 @@
 // @ts-ignore
-const { AutoComplete, EncoderELM, CharacterLangEncoderELM, FeatureCombinerELM, RefinerELM } = window.NeuroLeaf;
+const { AutoComplete, EncoderELM, CharacterLangEncoderELM, FeatureCombinerELM, RefinerELM, ConfidenceClassifierELM } = window.NeuroLeaf;
 
 window.addEventListener('DOMContentLoaded', () => {
     const input = document.getElementById('userInput');
@@ -119,6 +119,17 @@ window.addEventListener('DOMContentLoaded', () => {
                 combiner.predict(vec, metas[i])[0]
             );
 
+            const confidenceClassifier = new ConfidenceClassifierELM(refinerConfig);  // reuse config
+
+            const confidenceLabels = combinerResults.map((res, i) => {
+                const incorrect = res.label !== labels[i];
+                const lowProb = res.prob < 0.8;
+                return (lowProb || incorrect) ? 'low' : 'high';
+            });
+
+            confidenceClassifier.train(vectors, metas, confidenceLabels);
+            console.log('🧠 ConfidenceClassifierELM trained.');
+
             const LOW_CONFIDENCE_THRESHOLD = 0.8;
             const lowConfidence = combinerResults
                 .map((res, i) => ({
@@ -171,7 +182,10 @@ window.addEventListener('DOMContentLoaded', () => {
                 let finalResult = combinerResult;
                 let refined;
 
-                if (combinerResult.prob < 0.6) {
+                const [confidenceResult] = confidenceClassifier.predict(vec, meta);
+                const isUncertain = confidenceResult.label === 'low';
+
+                if (combinerResult.prob < 0.6 || isUncertain) {
                     try {
                         [refined] = refiner.predict(combinedVec);
                         if (refined) {

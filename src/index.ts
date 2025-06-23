@@ -4,6 +4,7 @@ export * from './tasks/EncoderELM';
 export * from './tasks/IntentClassifier';
 export * from './tasks/LanguageClassifier';
 export * from './tasks/FeatureCombinerELM';
+export * from './tasks/VotingClassifierELM';
 export * from './tasks/ConfidenceClassifierELM';
 export * from './tasks/RefinerELM';
 export * from './tasks/CharacterLangEncoderELM';

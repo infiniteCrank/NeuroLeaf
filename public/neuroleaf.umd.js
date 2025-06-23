@@ -707,6 +707,35 @@
     }
 
     /**
+     * VotingClassifierELM takes predictions from multiple ELMs
+     * and learns to choose the most accurate final label.
+     */
+    class VotingClassifierELM {
+        constructor(config) {
+            this.elm = new ELM(Object.assign(Object.assign({}, config), { useTokenizer: false }));
+        }
+        train(predictionsA, predictionsB, trueLabels) {
+            const inputs = predictionsA.map((labelA, i) => [
+                ...this.oneHot(labelA),
+                ...this.oneHot(predictionsB[i])
+            ]);
+            const examples = inputs.map((input, i) => ({ input, label: trueLabels[i] }));
+            this.elm.train(examples);
+        }
+        predict(labelA, labelB) {
+            const input = [
+                ...this.oneHot(labelA),
+                ...this.oneHot(labelB)
+            ];
+            return this.elm.predict(JSON.stringify(input), 1);
+        }
+        oneHot(label) {
+            const categories = this.elm.categories;
+            return categories.map(c => (c === label ? 1 : 0));
+        }
+    }
+
+    /**
      * ConfidenceClassifierELM is a lightweight ELM wrapper
      * designed to classify whether an input prediction is likely to be high or low confidence.
      * It uses the same input format as FeatureCombinerELM (vector + meta).
@@ -814,6 +843,7 @@
     exports.TextEncoder = TextEncoder;
     exports.Tokenizer = Tokenizer;
     exports.UniversalEncoder = UniversalEncoder;
+    exports.VotingClassifierELM = VotingClassifierELM;
     exports.bindAutocompleteUI = bindAutocompleteUI;
     exports.defaultConfig = defaultConfig;
 

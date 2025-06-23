@@ -68,10 +68,9 @@ window.addEventListener('DOMContentLoaded', () => {
                 outputElement: output
             });
 
-            // const encoder = new EncoderELM(encoderConfig); // Removed due to NaN issues
             const langEncoder = new CharacterLangEncoderELM(encoderConfig);
 
-            langEncoder.train(greetings, labels);     // ✅ train the CharacterLangEncoderELM
+            langEncoder.train(greetings, labels);
 
             function normalize(vec) {
                 const mag = Math.sqrt(vec.reduce((s, x) => s + x * x, 0)) || 1;

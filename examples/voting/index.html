@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Chained ELMs + Confidence Classifier</title>
+  <title>Chained ELMs + Voting Classifier</title>
   <style>
     body {
       font-family: system-ui, sans-serif;
@@ -47,11 +47,14 @@
     .confidence-fill[data-model="refiner"] {
       box-shadow: inset 0 -4px 0 gold;
     }
+    .confidence-fill[data-model="voting"] {
+      box-shadow: inset 0 -4px 0 black;
+    }
   </style>
 </head>
 <body>
   <h1>🧠 ELM-Based Language Classifier</h1>
-  <p>This demo classifies the language of greetings in real-time using chained Extreme Learning Machines (ELMs) and a learned confidence model.</p>
+  <p>This demo classifies the language of greetings in real-time using chained Extreme Learning Machines (ELMs) with a voting ensemble from multiple models.</p>
 
   <input type="text" id="userInput" placeholder="Type a greeting..." />
   <div class="autocomplete-output" id="autoOutput"></div>
@@ -63,17 +66,18 @@
     <h3>🔍 Current Architecture:</h3>
     <ol>
       <li><strong>AutoComplete ELM</strong> predicts a complete greeting from the user’s partial input.</li>
-      <li><strong>CharacterLangEncoderELM</strong> converts the predicted greeting into a dense, normalized feature vector.</li>
-      <li><strong>Metadata</strong> is extracted from the original input: length, character diversity, vowel ratio, punctuation ratio.</li>
-      <li><strong>FeatureCombinerELM</strong> uses both vector and metadata to classify the greeting’s language.</li>
-      <li><strong>ConfidenceClassifierELM</strong> predicts whether the combiner's result is likely to be unreliable.</li>
-      <li><strong>RefinerELM</strong> is only invoked when the combiner is uncertain or the confidence classifier flags the prediction.</li>
+      <li><strong>CharacterLangEncoderELM</strong> encodes the greeting into a normalized vector.</li>
+      <li><strong>Metadata</strong> includes length, character diversity, vowel and punctuation ratios.</li>
+      <li><strong>FeatureCombinerELM</strong> predicts language based on vector + metadata.</li>
+      <li><strong>LanguageClassifier</strong> separately predicts based on encoded vector only.</li>
+      <li><strong>VotingClassifierELM</strong> combines both predictions and outputs a final decision.</li>
     </ol>
     <p>
-      Output indicators:
+      Output indicators:<br />
       <code>[C]</code> = Combiner prediction,<br />
       <code>[R]</code> = Refiner override,<br />
-      <code>[AC]</code> = Based on autocomplete suggestion.
+      <code>[AC]</code> = Based on autocomplete suggestion,<br />
+      <code>[V]</code> = Final ensemble decision via VotingClassifierELM
     </p>
   </div>
 

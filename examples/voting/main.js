@@ -1,5 +1,5 @@
 // @ts-ignore
-const { AutoComplete, EncoderELM, CharacterLangEncoderELM, FeatureCombinerELM, RefinerELM, ConfidenceClassifierELM } = window.NeuroLeaf;
+const { AutoComplete, EncoderELM, CharacterLangEncoderELM, FeatureCombinerELM, RefinerELM, ConfidenceClassifierELM, LanguageClassifier, VotingClassifierELM } = window.NeuroLeaf;
 
 window.addEventListener('DOMContentLoaded', () => {
     const input = document.getElementById('userInput');
@@ -9,6 +9,25 @@ window.addEventListener('DOMContentLoaded', () => {
     const charSet = 'abcdefghijklmnopqrstuvwxyzçàéèñáíóúü¿¡ ';
     const maxLen = 30;
 
+    const langConfig = {
+        categories: ['English', 'French', 'Spanish'],
+        charSet,
+        maxLen,
+        hiddenUnits: 50,
+        activation: 'relu',
+        useTokenizer: true,
+        tokenizerDelimiter: /\s+/
+    };
+
+    const encoderConfig = {
+        charSet,
+        maxLen,
+        hiddenUnits: 32,
+        activation: 'relu',
+        useTokenizer: true,
+        tokenizerDelimiter: /\s+/
+    };
+
     const acConfig = {
         charSet,
         maxLen,
@@ -17,7 +36,7 @@ window.addEventListener('DOMContentLoaded', () => {
         useTokenizer: true
     };
 
-    const encoderConfig = {
+    const charEncoderConfig = {
         charSet,
         maxLen,
         hiddenUnits: 64,
@@ -52,15 +71,9 @@ window.addEventListener('DOMContentLoaded', () => {
                 return { text, label };
             }).filter(d => d.text && d.label);
 
-            const conflicts = {};
-            allData.forEach(({ text, label }) => {
-                if (!conflicts[text]) conflicts[text] = new Set();
-                conflicts[text].add(label);
-            });
-            console.log("⚠️ Conflicts:", Object.entries(conflicts).filter(([k, v]) => v.size > 1));
-
             const greetings = allData.map(d => d.text);
             const labels = allData.map(d => d.label);
+
 
             const ac = new AutoComplete([...new Set(greetings)], {
                 ...acConfig,
@@ -68,7 +81,39 @@ window.addEventListener('DOMContentLoaded', () => {
                 outputElement: output
             });
 
-            const langEncoder = new CharacterLangEncoderELM(encoderConfig);
+            const encoder = new EncoderELM(encoderConfig);
+            const inputVectors = greetings.map(g =>
+                encoder.elm.encoder.normalize(encoder.elm.encoder.encode(g))
+            );
+            encoder.train(greetings, inputVectors);
+
+            const dim = 16; // output size of encoder
+            const labelMap = new Map();
+            const encodedTargets = greetings.map((_, i) => {
+                const label = labels[i];
+                if (!labelMap.has(label)) {
+                    const vec = new Array(dim).fill(0);
+                    vec[labelMap.size] = 1;
+                    labelMap.set(label, vec);
+                }
+                return labelMap.get(label);
+            });
+
+            encoder.train(greetings, encodedTargets);
+
+            const classifier = new LanguageClassifier(langConfig);
+
+            const classifierTrainingData = greetings.map((g, i) => {
+                const vec = encoder.encode(g);
+                return {
+                    vector: vec,
+                    label: labels[i]
+                };
+            });
+
+            classifier.trainVectors(classifierTrainingData);
+
+            const langEncoder = new CharacterLangEncoderELM(charEncoderConfig);
 
             langEncoder.train(greetings, labels);
 
@@ -165,6 +210,10 @@ window.addEventListener('DOMContentLoaded', () => {
                 const [acResult] = ac.predict(val, 1);
                 const prediction = acResult.completion;
                 output.textContent = `🔮 Autocomplete: ${prediction}`;
+
+                const encoded = encoder.encode(acResult.completion);
+                const [langResult] = classifier.predictFromVector(encoded)
+                console.log(langResult)
 
                 const langVec = normalize(langEncoder.encode(prediction));
                 const vec = langVec;

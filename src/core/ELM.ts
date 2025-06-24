@@ -46,6 +46,7 @@ export class ELM {
         this.useTokenizer = cfg.useTokenizer ?? false;
         this.tokenizerDelimiter = cfg.tokenizerDelimiter;
         this.config = cfg;
+        this.metrics = this.config.metrics
 
         this.encoder = new UniversalEncoder({
             charSet: this.charSet,

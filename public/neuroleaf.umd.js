@@ -273,6 +273,7 @@
             this.useTokenizer = (_b = cfg.useTokenizer) !== null && _b !== void 0 ? _b : false;
             this.tokenizerDelimiter = cfg.tokenizerDelimiter;
             this.config = cfg;
+            this.metrics = this.config.metrics;
             this.encoder = new UniversalEncoder({
                 charSet: this.charSet,
                 maxLen: this.maxLen,
@@ -487,6 +488,8 @@
     // AutoComplete.ts - High-level autocomplete controller using ELM
     class AutoComplete {
         constructor(categories, options) {
+            console.log("options metrics in auto complete");
+            console.log(options.metrics);
             this.elm = new ELM(Object.assign(Object.assign({}, EnglishTokenPreset), { categories, metrics: options.metrics, verbose: options.verbose, exportFileName: options.exportFileName }));
             // Train the model, safely handling optional augmentationOptions
             this.elm.train(options === null || options === void 0 ? void 0 : options.augmentationOptions);

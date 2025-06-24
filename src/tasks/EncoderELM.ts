@@ -25,9 +25,6 @@ export class EncoderELM {
         };
 
         this.elm = new ELM(this.config);
-        if (this.elm.metrics) this.elm.metrics = this.elm.metrics;
-        if (this.elm.verbose) this.elm.verbose = this.elm.verbose;
-        if (config.exportFileName) (this as any).elm.config.exportFileName = config.exportFileName;
     }
 
     /**

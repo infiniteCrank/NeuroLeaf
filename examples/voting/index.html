@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Chained ELMs + Voting Classifier</title>
+  <title>Chained ELMs + Confidence Refinement</title>
   <style>
     body {
       font-family: system-ui, sans-serif;
@@ -47,14 +47,11 @@
     .confidence-fill[data-model="refiner"] {
       box-shadow: inset 0 -4px 0 gold;
     }
-    .confidence-fill[data-model="voting"] {
-      box-shadow: inset 0 -4px 0 black;
-    }
   </style>
 </head>
 <body>
   <h1>🧠 ELM-Based Language Classifier</h1>
-  <p>This demo classifies the language of greetings in real-time using chained Extreme Learning Machines (ELMs) with a voting ensemble from multiple models.</p>
+  <p>This demo classifies the language of greetings in real-time using chained Extreme Learning Machines (ELMs) including autocompletion, multiple classifiers, a confidence estimator, and a fallback refinement layer.</p>
 
   <input type="text" id="userInput" placeholder="Type a greeting..." />
   <div class="autocomplete-output" id="autoOutput"></div>
@@ -65,19 +62,19 @@
   <div class="explanation">
     <h3>🔍 Current Architecture:</h3>
     <ol>
-      <li><strong>AutoComplete ELM</strong> predicts a complete greeting from the user’s partial input.</li>
-      <li><strong>CharacterLangEncoderELM</strong> encodes the greeting into a normalized vector.</li>
-      <li><strong>Metadata</strong> includes length, character diversity, vowel and punctuation ratios.</li>
-      <li><strong>FeatureCombinerELM</strong> predicts language based on vector + metadata.</li>
-      <li><strong>LanguageClassifier</strong> separately predicts based on encoded vector only.</li>
-      <li><strong>VotingClassifierELM</strong> combines both predictions and outputs a final decision.</li>
+      <li><strong>AutoComplete ELM</strong> completes partial user input with a full greeting.</li>
+      <li><strong>CharacterLangEncoderELM</strong> encodes the completed greeting at a character level into a normalized feature vector.</li>
+      <li><strong>EncoderELM</strong> produces another encoded vector used by the separate LanguageClassifier.</li>
+      <li><strong>LanguageClassifier</strong> makes a prediction using only the encoder vector.</li>
+      <li><strong>Metadata</strong> (length, diversity, vowels, punctuation) is normalized and paired with the encoded vector.</li>
+      <li><strong>FeatureCombinerELM</strong> predicts the language from the combined features.</li>
+      <li><strong>ConfidenceClassifierELM</strong> decides whether to trust the combiner result.</li>
+      <li><strong>RefinerELM</strong> is used if either confidence is low or predictions disagree, choosing the most robust final output.</li>
     </ol>
     <p>
       Output indicators:<br />
-      <code>[C]</code> = Combiner prediction,<br />
-      <code>[R]</code> = Refiner override,<br />
-      <code>[AC]</code> = Based on autocomplete suggestion,<br />
-      <code>[V]</code> = Final ensemble decision via VotingClassifierELM
+      <code>[C]</code> = FeatureCombiner result,<br />
+      <code>[R]</code> = Refiner override<br />
     </p>
   </div>
 

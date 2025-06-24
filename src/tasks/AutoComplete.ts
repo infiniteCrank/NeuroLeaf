@@ -40,6 +40,14 @@ export class AutoComplete {
         });
     }
 
+    public train(augmentationOptions?: {
+        suffixes?: string[];
+        prefixes?: string[];
+        includeNoise?: boolean;
+    }): void {
+        this.elm.train(augmentationOptions);
+    }
+
     predict(input: string, topN = 1): { completion: string; prob: number }[] {
         return this.elm.predict(input).slice(0, topN).map(p => ({
             completion: p.label,

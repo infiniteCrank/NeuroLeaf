@@ -51,8 +51,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
             const greetings = allData.map(d => d.text);
             const labels = allData.map(d => d.label);
-            console.log("this is the base config in Main.js")
-            console.log(baseConfig(40, 'ac_model.json').metrics)
+
             const ac = new AutoComplete([...new Set(greetings)], {
                 ...baseConfig(40, 'ac_model.json'),
                 inputElement: input,

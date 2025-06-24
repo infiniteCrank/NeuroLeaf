@@ -488,8 +488,6 @@
     // AutoComplete.ts - High-level autocomplete controller using ELM
     class AutoComplete {
         constructor(categories, options) {
-            console.log("options metrics in auto complete");
-            console.log(options.metrics);
             this.elm = new ELM(Object.assign(Object.assign({}, EnglishTokenPreset), { categories, metrics: options.metrics, verbose: options.verbose, exportFileName: options.exportFileName }));
             // Train the model, safely handling optional augmentationOptions
             this.elm.train(options === null || options === void 0 ? void 0 : options.augmentationOptions);
@@ -499,6 +497,9 @@
                 outputElement: options.outputElement,
                 topK: options.topK
             });
+        }
+        train(augmentationOptions) {
+            this.elm.train(augmentationOptions);
         }
         predict(input, topN = 1) {
             return this.elm.predict(input).slice(0, topN).map(p => ({

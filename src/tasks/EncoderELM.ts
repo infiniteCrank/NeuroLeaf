@@ -25,8 +25,10 @@ export class EncoderELM {
         };
 
         this.elm = new ELM(this.config);
+        if (this.elm.metrics) this.elm.metrics = this.elm.metrics;
+        if (this.elm.verbose) this.elm.verbose = this.elm.verbose;
+        if (config.exportFileName) (this as any).elm.config.exportFileName = config.exportFileName;
     }
-
 
     /**
      * Custom training method for string → vector encoding.
@@ -73,6 +75,14 @@ export class EncoderELM {
         ), activationFn);
 
         return Matrix.multiply(H, beta)[0];
+    }
+
+    public loadModelFromJSON(json: string): void {
+        this.elm.loadModelFromJSON(json);
+    }
+
+    public saveModelAsJSONFile(filename?: string): void {
+        this.elm.saveModelAsJSONFile(filename);
     }
 
 }

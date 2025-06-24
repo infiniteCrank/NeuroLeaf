@@ -7,10 +7,14 @@ import { IO, LabeledExample } from '../utils/IO';
 export class LanguageClassifier {
     private elm: ELM;
     private config: ELMConfig;
+    private trainSamples: Record<string, string[]> = {};
 
     constructor(config: ELMConfig) {
         this.config = config;
         this.elm = new ELM(config);
+        if (this.elm.metrics) this.elm.metrics = this.elm.metrics;
+        if (this.elm.verbose) this.elm.verbose = this.elm.verbose;
+        if (config.exportFileName) (this as any).elm.config.exportFileName = config.exportFileName;
     }
 
     loadTrainingData(raw: string, format: 'json' | 'csv' | 'tsv' = 'json'): LabeledExample[] {
@@ -90,6 +94,11 @@ export class LanguageClassifier {
             .slice(0, topK);
     }
 
+    public loadModelFromJSON(json: string): void {
+        this.elm.loadModelFromJSON(json);
+    }
 
-    private trainSamples: Record<string, string[]> = {};
+    public saveModelAsJSONFile(filename?: string): void {
+        this.elm.saveModelAsJSONFile(filename);
+    }
 }

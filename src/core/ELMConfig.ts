@@ -11,6 +11,9 @@ export interface ELMConfig {
     charSet?: string;
     useTokenizer?: boolean;
     tokenizerDelimiter?: RegExp;
+
+    //file loading 
+    exportFileName?: string
 }
 
 export const defaultConfig: Required<Pick<ELMConfig, 'categories' | 'hiddenUnits' | 'maxLen' | 'activation'>> = {

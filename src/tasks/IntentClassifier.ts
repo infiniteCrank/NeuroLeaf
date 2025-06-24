@@ -33,5 +33,13 @@ export class IntentClassifier {
     private oneHot(n: number, index: number): number[] {
         return Array.from({ length: n }, (_, i) => (i === index ? 1 : 0));
     }
+
+    public loadModelFromJSON(json: string): void {
+        this.model.loadModelFromJSON(json);
+    }
+
+    public saveModelAsJSONFile(filename?: string): void {
+        this.model.saveModelAsJSONFile(filename);
+    }
 }
 

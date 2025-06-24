@@ -5,6 +5,7 @@ import { bindAutocompleteUI } from '../ui/components/BindUI';
 import { EnglishTokenPreset } from '../config/Presets';
 
 export class AutoComplete {
+
     private model: ELM;
 
     constructor(categories: string[], options: {
@@ -40,4 +41,13 @@ export class AutoComplete {
     public getModel(): ELM {
         return this.model;
     }
+
+    public loadModelFromJSON(json: string): void {
+        this.model.loadModelFromJSON(json);
+    }
+
+    public saveModelAsJSONFile(filename?: string): void {
+        this.model.saveModelAsJSONFile(filename);
+    }
+
 }

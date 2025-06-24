@@ -102,10 +102,12 @@
 
     // ELMConfig.ts - Configuration interface and defaults for ELM-based models
     const defaultConfig = {
-        categories: [],
-        hiddenUnits: 120,
-        maxLen: 15,
-        activation: 'relu'
+        hiddenUnits: 50,
+        maxLen: 30,
+        activation: 'relu',
+        charSet: 'abcdefghijklmnopqrstuvwxyz',
+        useTokenizer: false,
+        tokenizerDelimiter: /\s+/
     };
 
     class Tokenizer {
@@ -270,6 +272,7 @@
             this.charSet = (_a = cfg.charSet) !== null && _a !== void 0 ? _a : 'abcdefghijklmnopqrstuvwxyz';
             this.useTokenizer = (_b = cfg.useTokenizer) !== null && _b !== void 0 ? _b : false;
             this.tokenizerDelimiter = cfg.tokenizerDelimiter;
+            this.config = cfg;
             this.encoder = new UniversalEncoder({
                 charSet: this.charSet,
                 maxLen: this.maxLen,
@@ -295,6 +298,18 @@
         setCategories(categories) {
             this.categories = categories;
         }
+        loadModelFromJSON(json) {
+            try {
+                const parsed = JSON.parse(json);
+                this.model = parsed;
+                this.savedModelJSON = json;
+                if (this.verbose)
+                    console.log("✅ Model loaded from JSON");
+            }
+            catch (e) {
+                console.error("❌ Failed to load model from JSON:", e);
+            }
+        }
         train(augmentationOptions) {
             const X = [], Y = [];
             this.categories.forEach((cat, i) => {
@@ -313,6 +328,66 @@
             const H_pinv = this.pseudoInverse(H);
             const beta = Matrix.multiply(H_pinv, Y);
             this.model = { W, b, beta };
+            // --- Evaluation and Conditional Save ---
+            const predictions = Matrix.multiply(H, beta);
+            const results = {};
+            let allPassed = true;
+            if (this.metrics) {
+                if (this.metrics.rmse !== undefined) {
+                    const rmse = this.calculateRMSE(Y, predictions);
+                    results.rmse = rmse;
+                    if (rmse > this.metrics.rmse)
+                        allPassed = false;
+                }
+                if (this.metrics.mae !== undefined) {
+                    const mae = this.calculateMAE(Y, predictions);
+                    results.mae = mae;
+                    if (mae > this.metrics.mae)
+                        allPassed = false;
+                }
+                if (this.metrics.accuracy !== undefined) {
+                    const acc = this.calculateAccuracy(Y, predictions);
+                    results.accuracy = acc;
+                    if (acc < this.metrics.accuracy)
+                        allPassed = false;
+                }
+                if (this.verbose) {
+                    console.log("Evaluation Results:", results);
+                }
+                if (allPassed) {
+                    this.savedModelJSON = JSON.stringify(this.model);
+                    if (this.verbose)
+                        console.log("✅ Model saved: All metric thresholds met.");
+                    if (this.config.exportFileName) {
+                        this.saveModelAsJSONFile(this.config.exportFileName);
+                    }
+                }
+                else {
+                    if (this.verbose)
+                        console.log("❌ Model not saved: One or more thresholds not met.");
+                }
+            }
+            else {
+                throw new Error("No metrics defined in config. Please specify at least one metric to evaluate.");
+            }
+        }
+        saveModelAsJSONFile(filename = "elm_model.json") {
+            if (!this.savedModelJSON) {
+                if (this.verbose)
+                    console.warn("No model saved — did not meet metric thresholds.");
+                return;
+            }
+            const blob = new Blob([this.savedModelJSON], { type: "application/json" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            if (this.verbose)
+                console.log(`📦 Model exported as ${filename}`);
         }
         predict(text, topK = 5) {
             if (!this.model)
@@ -343,6 +418,37 @@
                     .sort((a, b) => b.prob - a.prob)
                     .slice(0, topK);
             });
+        }
+        calculateRMSE(Y, P) {
+            const N = Y.length;
+            let sum = 0;
+            for (let i = 0; i < N; i++) {
+                for (let j = 0; j < Y[0].length; j++) {
+                    const diff = Y[i][j] - P[i][j];
+                    sum += diff * diff;
+                }
+            }
+            return Math.sqrt(sum / (N * Y[0].length));
+        }
+        calculateMAE(Y, P) {
+            const N = Y.length;
+            let sum = 0;
+            for (let i = 0; i < N; i++) {
+                for (let j = 0; j < Y[0].length; j++) {
+                    sum += Math.abs(Y[i][j] - P[i][j]);
+                }
+            }
+            return sum / (N * Y[0].length);
+        }
+        calculateAccuracy(Y, P) {
+            let correct = 0;
+            for (let i = 0; i < Y.length; i++) {
+                const yMax = Y[i].indexOf(Math.max(...Y[i]));
+                const pMax = P[i].indexOf(Math.max(...P[i]));
+                if (yMax === pMax)
+                    correct++;
+            }
+            return correct / Y.length;
         }
     }
 
@@ -381,24 +487,30 @@
     // AutoComplete.ts - High-level autocomplete controller using ELM
     class AutoComplete {
         constructor(categories, options) {
-            this.model = new ELM(Object.assign(Object.assign({}, EnglishTokenPreset), { categories }));
+            this.elm = new ELM(Object.assign(Object.assign({}, EnglishTokenPreset), { categories, metrics: options.metrics, verbose: options.verbose, exportFileName: options.exportFileName }));
             // Train the model, safely handling optional augmentationOptions
-            this.model.train(options === null || options === void 0 ? void 0 : options.augmentationOptions);
+            this.elm.train(options === null || options === void 0 ? void 0 : options.augmentationOptions);
             bindAutocompleteUI({
-                model: this.model,
+                model: this.elm,
                 inputElement: options.inputElement,
                 outputElement: options.outputElement,
                 topK: options.topK
             });
         }
         predict(input, topN = 1) {
-            return this.model.predict(input).slice(0, topN).map(p => ({
+            return this.elm.predict(input).slice(0, topN).map(p => ({
                 completion: p.label,
                 prob: p.prob
             }));
         }
         getModel() {
-            return this.model;
+            return this.elm;
+        }
+        loadModelFromJSON(json) {
+            this.elm.loadModelFromJSON(json);
+        }
+        saveModelAsJSONFile(filename) {
+            this.elm.saveModelAsJSONFile(filename);
         }
     }
 
@@ -415,6 +527,12 @@
             }
             this.config = Object.assign(Object.assign({}, config), { categories: [], useTokenizer: true });
             this.elm = new ELM(this.config);
+            if (config.metrics)
+                this.elm.metrics = config.metrics;
+            if (config.verbose)
+                this.elm.verbose = config.verbose;
+            if (config.exportFileName)
+                this.elm.config.exportFileName = config.exportFileName;
         }
         /**
          * Custom training method for string → vector encoding.
@@ -448,16 +566,29 @@
             const H = Activations.apply(tempH.map(row => row.map((val, j) => val + b[j][0])), activationFn);
             return Matrix.multiply(H, beta)[0];
         }
+        loadModelFromJSON(json) {
+            this.elm.loadModelFromJSON(json);
+        }
+        saveModelAsJSONFile(filename) {
+            this.elm.saveModelAsJSONFile(filename);
+        }
     }
 
     // intentClassifier.ts - ELM-based intent classification engine
     class IntentClassifier {
         constructor(config) {
+            this.config = config;
             this.model = new ELM(config);
+            if (config.metrics)
+                this.model.metrics = config.metrics;
+            if (config.verbose)
+                this.model.verbose = config.verbose;
+            if (config.exportFileName)
+                this.model.config.exportFileName = config.exportFileName;
         }
         train(textLabelPairs, augmentationOptions) {
             const labelSet = Array.from(new Set(textLabelPairs.map(p => p.label)));
-            Object.assign(Object.assign({}, this.model), { categories: labelSet });
+            this.model.setCategories(labelSet);
             this.model.train(augmentationOptions);
         }
         predict(text, topK = 1, threshold = 0) {
@@ -468,6 +599,12 @@
         }
         oneHot(n, index) {
             return Array.from({ length: n }, (_, i) => (i === index ? 1 : 0));
+        }
+        loadModelFromJSON(json) {
+            this.model.loadModelFromJSON(json);
+        }
+        saveModelAsJSONFile(filename) {
+            this.model.saveModelAsJSONFile(filename);
         }
     }
 
@@ -594,6 +731,12 @@
             this.trainSamples = {};
             this.config = config;
             this.elm = new ELM(config);
+            if (config.metrics)
+                this.elm.metrics = config.metrics;
+            if (config.verbose)
+                this.elm.verbose = config.verbose;
+            if (config.exportFileName)
+                this.elm.config.exportFileName = config.exportFileName;
         }
         loadTrainingData(raw, format = 'json') {
             switch (format) {
@@ -656,6 +799,12 @@
                 .sort((a, b) => b.prob - a.prob)
                 .slice(0, topK);
         }
+        loadModelFromJSON(json) {
+            this.elm.loadModelFromJSON(json);
+        }
+        saveModelAsJSONFile(filename) {
+            this.elm.saveModelAsJSONFile(filename);
+        }
     }
 
     class FeatureCombinerELM {
@@ -669,6 +818,12 @@
             this.config = Object.assign(Object.assign({}, config), { categories: [], useTokenizer: false // this ELM takes numeric vectors
              });
             this.elm = new ELM(this.config);
+            if (config.metrics)
+                this.elm.metrics = config.metrics;
+            if (config.verbose)
+                this.elm.verbose = config.verbose;
+            if (config.exportFileName)
+                this.elm.config.exportFileName = config.exportFileName;
         }
         /**
          * Combines encoder vector and metadata into one input vector
@@ -704,6 +859,12 @@
             const [results] = this.elm.predictFromVector(input, topK);
             return results;
         }
+        loadModelFromJSON(json) {
+            this.elm.loadModelFromJSON(json);
+        }
+        saveModelAsJSONFile(filename) {
+            this.elm.saveModelAsJSONFile(filename);
+        }
     }
 
     /**
@@ -716,6 +877,12 @@
             this.categories = config.categories || ['English', 'French', 'Spanish'];
             this.modelWeights = [];
             this.elm = new ELM(Object.assign(Object.assign({}, config), { useTokenizer: false, categories: this.categories }));
+            if (config.metrics)
+                this.elm.metrics = config.metrics;
+            if (config.verbose)
+                this.elm.verbose = config.verbose;
+            if (config.exportFileName)
+                this.elm.config.exportFileName = config.exportFileName;
         }
         setModelWeights(weights) {
             this.modelWeights = weights;
@@ -758,7 +925,6 @@
                     }
                 }
             }
-            // Automatically calibrate weights if not set
             if (!this.modelWeights || this.modelWeights.length !== numModels) {
                 this.calibrateWeights(predictionLists, trueLabels);
             }
@@ -775,7 +941,7 @@
                     inputRow = inputRow.concat(this.oneHot(label).map(x => x * weight));
                     if (confidenceLists) {
                         const conf = confidenceLists[m][i];
-                        const normalizedConf = Math.min(1, Math.max(0, conf)); // Clamp to [0,1]
+                        const normalizedConf = Math.min(1, Math.max(0, conf));
                         inputRow.push(normalizedConf * weight);
                     }
                 }
@@ -808,6 +974,12 @@
             }
             return this.categories.map((_, i) => (i === index ? 1 : 0));
         }
+        loadModelFromJSON(json) {
+            this.elm.loadModelFromJSON(json);
+        }
+        saveModelAsJSONFile(filename) {
+            this.elm.saveModelAsJSONFile(filename);
+        }
     }
 
     /**
@@ -819,6 +991,13 @@
         constructor(config) {
             this.config = config;
             this.elm = new ELM(Object.assign(Object.assign({}, config), { categories: ['low', 'high'], useTokenizer: false }));
+            // Forward optional ELM config extensions
+            if (config.metrics)
+                this.elm.metrics = config.metrics;
+            if (config.verbose)
+                this.elm.verbose = config.verbose;
+            if (config.exportFileName)
+                this.elm.config.exportFileName = config.exportFileName;
         }
         train(vectors, metas, labels) {
             vectors.map((vec, i) => FeatureCombinerELM.combineFeatures(vec, metas[i]));
@@ -826,7 +1005,6 @@
                 input: FeatureCombinerELM.combineFeatures(vec, metas[i]),
                 label: labels[i]
             }));
-            // Explicitly cast to match expected training format for ELM
             this.elm.train(examples);
         }
         predict(vec, meta) {
@@ -834,12 +1012,24 @@
             const inputStr = JSON.stringify(input);
             return this.elm.predict(inputStr, 1);
         }
+        loadModelFromJSON(json) {
+            this.elm.loadModelFromJSON(json);
+        }
+        saveModelAsJSONFile(filename) {
+            this.elm.saveModelAsJSONFile(filename);
+        }
     }
 
     class RefinerELM {
         constructor(config) {
             this.config = Object.assign(Object.assign({}, config), { useTokenizer: false, categories: [] });
             this.elm = new ELM(this.config);
+            if (config.metrics)
+                this.elm.metrics = config.metrics;
+            if (config.verbose)
+                this.elm.verbose = config.verbose;
+            if (config.exportFileName)
+                this.elm.config.exportFileName = config.exportFileName;
         }
         train(inputs, labels) {
             const categories = [...new Set(labels)];
@@ -870,6 +1060,12 @@
                 .map((p, i) => ({ label: this.elm.categories[i], prob: p }))
                 .sort((a, b) => b.prob - a.prob);
         }
+        loadModelFromJSON(json) {
+            this.elm.loadModelFromJSON(json);
+        }
+        saveModelAsJSONFile(filename) {
+            this.elm.saveModelAsJSONFile(filename);
+        }
     }
 
     class CharacterLangEncoderELM {
@@ -879,6 +1075,13 @@
             }
             this.config = Object.assign(Object.assign({}, config), { useTokenizer: true });
             this.elm = new ELM(this.config);
+            // Forward ELM-specific options
+            if (config.metrics)
+                this.elm.metrics = config.metrics;
+            if (config.verbose)
+                this.elm.verbose = config.verbose;
+            if (config.exportFileName)
+                this.elm.config.exportFileName = config.exportFileName;
         }
         train(inputStrings, labels) {
             const categories = [...new Set(labels)];
@@ -900,6 +1103,12 @@
             const H = Activations.apply(tempH.map(row => row.map((val, j) => val + b[j][0])), activationFn);
             // dense feature vector
             return Matrix.multiply(H, beta)[0];
+        }
+        loadModelFromJSON(json) {
+            this.elm.loadModelFromJSON(json);
+        }
+        saveModelAsJSONFile(filename) {
+            this.elm.saveModelAsJSONFile(filename);
         }
     }
 

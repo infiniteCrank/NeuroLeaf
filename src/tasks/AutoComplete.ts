@@ -6,25 +6,34 @@ import { EnglishTokenPreset } from '../config/Presets';
 
 export class AutoComplete {
 
-    private model: ELM;
+    public elm: ELM;
 
     constructor(categories: string[], options: {
         inputElement: HTMLInputElement;
         outputElement: HTMLElement;
         topK?: number;
+        metrics?: { rmse?: number; mae?: number; accuracy?: number };
+        verbose?: boolean;
+        exportFileName?: string;
         augmentationOptions?: {
             suffixes?: string[];
             prefixes?: string[];
             includeNoise?: boolean;
         };
     }) {
-        this.model = new ELM({ ...EnglishTokenPreset, categories });
+        this.elm = new ELM({
+            ...EnglishTokenPreset,
+            categories,
+            metrics: options.metrics,
+            verbose: options.verbose,
+            exportFileName: options.exportFileName
+        });
 
         // Train the model, safely handling optional augmentationOptions
-        this.model.train(options?.augmentationOptions);
+        this.elm.train(options?.augmentationOptions);
 
         bindAutocompleteUI({
-            model: this.model,
+            model: this.elm,
             inputElement: options.inputElement,
             outputElement: options.outputElement,
             topK: options.topK
@@ -32,22 +41,22 @@ export class AutoComplete {
     }
 
     predict(input: string, topN = 1): { completion: string; prob: number }[] {
-        return this.model.predict(input).slice(0, topN).map(p => ({
+        return this.elm.predict(input).slice(0, topN).map(p => ({
             completion: p.label,
             prob: p.prob
         }));
     }
 
     public getModel(): ELM {
-        return this.model;
+        return this.elm;
     }
 
     public loadModelFromJSON(json: string): void {
-        this.model.loadModelFromJSON(json);
+        this.elm.loadModelFromJSON(json);
     }
 
     public saveModelAsJSONFile(filename?: string): void {
-        this.model.saveModelAsJSONFile(filename);
+        this.elm.saveModelAsJSONFile(filename);
     }
 
 }

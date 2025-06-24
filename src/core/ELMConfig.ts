@@ -12,13 +12,25 @@ export interface ELMConfig {
     useTokenizer?: boolean;
     tokenizerDelimiter?: RegExp;
 
-    //file loading 
-    exportFileName?: string
+    // File export
+    exportFileName?: string;
+
+    // Model evaluation
+    metrics?: {
+        rmse?: number;
+        mae?: number;
+        accuracy?: number;
+    };
+
+    // Logging
+    verbose?: boolean;
 }
 
-export const defaultConfig: Required<Pick<ELMConfig, 'categories' | 'hiddenUnits' | 'maxLen' | 'activation'>> = {
-    categories: [],
-    hiddenUnits: 120,
-    maxLen: 15,
-    activation: 'relu'
+export const defaultConfig: Required<Pick<ELMConfig, 'hiddenUnits' | 'maxLen' | 'activation' | 'charSet' | 'useTokenizer' | 'tokenizerDelimiter'>> = {
+    hiddenUnits: 50,
+    maxLen: 30,
+    activation: 'relu',
+    charSet: 'abcdefghijklmnopqrstuvwxyz',
+    useTokenizer: false,
+    tokenizerDelimiter: /\s+/
 };

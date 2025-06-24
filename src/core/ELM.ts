@@ -34,7 +34,7 @@ export class ELM {
     };
     public verbose?: boolean;
     public savedModelJSON?: string;
-    private config: ELMConfig;
+    public config: ELMConfig;
 
     constructor(config: ELMConfig & { charSet?: string; useTokenizer?: boolean; tokenizerDelimiter?: RegExp }) {
         const cfg = { ...defaultConfig, ...config };

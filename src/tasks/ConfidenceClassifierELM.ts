@@ -16,6 +16,11 @@ export class ConfidenceClassifierELM {
             categories: ['low', 'high'],
             useTokenizer: false
         });
+
+        // Forward optional ELM config extensions
+        if (config.metrics) this.elm.metrics = config.metrics;
+        if (config.verbose) this.elm.verbose = config.verbose;
+        if (config.exportFileName) this.elm.config.exportFileName = config.exportFileName;
     }
 
     train(vectors: number[][], metas: number[][], labels: string[]): void {
@@ -27,7 +32,6 @@ export class ConfidenceClassifierELM {
             label: labels[i]
         }));
 
-        // Explicitly cast to match expected training format for ELM
         this.elm.train(examples as any);
     }
 
@@ -37,4 +41,11 @@ export class ConfidenceClassifierELM {
         return this.elm.predict(inputStr, 1);
     }
 
+    public loadModelFromJSON(json: string): void {
+        this.elm.loadModelFromJSON(json);
+    }
+
+    public saveModelAsJSONFile(filename?: string): void {
+        this.elm.saveModelAsJSONFile(filename);
+    }
 }

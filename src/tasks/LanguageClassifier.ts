@@ -12,6 +12,10 @@ export class LanguageClassifier {
     constructor(config: ELMConfig) {
         this.config = config;
         this.elm = new ELM(config);
+
+        if (config.metrics) this.elm.metrics = config.metrics;
+        if (config.verbose) this.elm.verbose = config.verbose;
+        if (config.exportFileName) this.elm.config.exportFileName = config.exportFileName;
     }
 
     loadTrainingData(raw: string, format: 'json' | 'csv' | 'tsv' = 'json'): LabeledExample[] {

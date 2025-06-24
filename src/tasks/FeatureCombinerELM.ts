@@ -22,6 +22,10 @@ export class FeatureCombinerELM {
         };
 
         this.elm = new ELM(this.config);
+
+        if (config.metrics) this.elm.metrics = config.metrics;
+        if (config.verbose) this.elm.verbose = config.verbose;
+        if (config.exportFileName) this.elm.config.exportFileName = config.exportFileName;
     }
 
     /**
@@ -72,4 +76,11 @@ export class FeatureCombinerELM {
         return results;
     }
 
+    public loadModelFromJSON(json: string): void {
+        this.elm.loadModelFromJSON(json);
+    }
+
+    public saveModelAsJSONFile(filename?: string): void {
+        this.elm.saveModelAsJSONFile(filename);
+    }
 }

@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Chained ELMs + Voting Classifier</title>
+  <style>
+    body {
+      font-family: system-ui, sans-serif;
+      padding: 2rem;
+      max-width: 800px;
+      margin: auto;
+      line-height: 1.6;
+    }
+    input[type="text"] {
+      padding: 0.5rem;
+      width: 100%;
+      font-size: 1.1rem;
+      margin-bottom: 1rem;
+    }
+    .autocomplete-output {
+      font-size: 1.2rem;
+      color: #333;
+      margin-bottom: 1rem;
+    }
+    .confidence-bar {
+      height: 24px;
+      border-radius: 12px;
+      background: #ddd;
+      overflow: hidden;
+    }
+    .confidence-fill {
+      height: 100%;
+      text-align: center;
+      color: white;
+      font-weight: bold;
+      line-height: 24px;
+    }
+    .explanation {
+      margin-top: 2rem;
+      background: #f9f9f9;
+      padding: 1rem;
+      border-left: 4px solid #888;
+    }
+    .confidence-fill[data-model="combiner"] {
+      box-shadow: inset 0 -4px 0 limegreen;
+    }
+    .confidence-fill[data-model="refiner"] {
+      box-shadow: inset 0 -4px 0 gold;
+    }
+    .confidence-fill[data-model="voting"] {
+      box-shadow: inset 0 -4px 0 black;
+    }
+  </style>
+</head>
+<body>
+  <h1>🧠 ELM-Based Language Classifier</h1>
+  <p>This demo classifies the language of greetings in real-time using chained Extreme Learning Machines (ELMs) with a voting ensemble from multiple models.</p>
+
+  <input type="text" id="userInput" placeholder="Type a greeting..." />
+  <div class="autocomplete-output" id="autoOutput"></div>
+  <div class="confidence-bar">
+    <div id="langFill" class="confidence-fill" style="width:0%"></div>
+  </div>
+
+  <div class="explanation">
+    <h3>🔍 Current Architecture:</h3>
+    <ol>
+      <li><strong>AutoComplete ELM</strong> predicts a complete greeting from the user’s partial input.</li>
+      <li><strong>CharacterLangEncoderELM</strong> encodes the greeting into a normalized vector.</li>
+      <li><strong>Metadata</strong> includes length, character diversity, vowel and punctuation ratios.</li>
+      <li><strong>FeatureCombinerELM</strong> predicts language based on vector + metadata.</li>
+      <li><strong>LanguageClassifier</strong> separately predicts based on encoded vector only.</li>
+      <li><strong>VotingClassifierELM</strong> combines both predictions and outputs a final decision.</li>
+    </ol>
+    <p>
+      Output indicators:<br />
+      <code>[C]</code> = Combiner prediction,<br />
+      <code>[R]</code> = Refiner override,<br />
+      <code>[AC]</code> = Based on autocomplete suggestion,<br />
+      <code>[V]</code> = Final ensemble decision via VotingClassifierELM
+    </p>
+  </div>
+
+  <script src="/neuroleaf.umd.js"></script>
+  <script src="/main.js"></script>
+</body>
+</html>

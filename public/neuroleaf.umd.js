@@ -108,18 +108,25 @@
         activation: 'relu'
     };
 
-    // Tokenizer.ts - Utility for splitting and tokenizing text inputs
     class Tokenizer {
         constructor(customDelimiter) {
-            // Default to splitting on whitespace and punctuation
             this.delimiter = customDelimiter || /[\s,.;!?()\[\]{}"']+/;
         }
         tokenize(text) {
+            if (typeof text !== 'string') {
+                console.warn('[Tokenizer] Expected a string, got:', typeof text, text);
+                try {
+                    text = String(text !== null && text !== void 0 ? text : '');
+                }
+                catch (_a) {
+                    return [];
+                }
+            }
             return text
                 .trim()
                 .toLowerCase()
                 .split(this.delimiter)
-                .filter(Boolean); // Remove empty tokens
+                .filter(Boolean);
         }
         ngrams(tokens, n) {
             if (n <= 0 || tokens.length < n)
@@ -321,6 +328,21 @@
                 .map((p, i) => ({ label: this.categories[i], prob: p }))
                 .sort((a, b) => b.prob - a.prob)
                 .slice(0, topK);
+        }
+        predictFromVector(inputVec, topK = 5) {
+            if (!this.model)
+                throw new Error("Model not trained.");
+            const { W, b, beta } = this.model;
+            const tempH = Matrix.multiply(inputVec, Matrix.transpose(W));
+            const activationFn = Activations.get(this.activation);
+            const H = Activations.apply(tempH.map(row => row.map((val, j) => val + b[j][0])), activationFn);
+            return Matrix.multiply(H, beta).map(rawOutput => {
+                const probs = Activations.softmax(rawOutput);
+                return probs
+                    .map((p, i) => ({ label: this.categories[i], prob: p }))
+                    .sort((a, b) => b.prob - a.prob)
+                    .slice(0, topK);
+            });
         }
     }
 
@@ -636,17 +658,267 @@
         }
     }
 
+    class FeatureCombinerELM {
+        constructor(config) {
+            if (typeof config.hiddenUnits !== 'number') {
+                throw new Error('FeatureCombinerELM requires hiddenUnits');
+            }
+            if (!config.activation) {
+                throw new Error('FeatureCombinerELM requires activation');
+            }
+            this.config = Object.assign(Object.assign({}, config), { categories: [], useTokenizer: false // this ELM takes numeric vectors
+             });
+            this.elm = new ELM(this.config);
+        }
+        /**
+         * Combines encoder vector and metadata into one input vector
+         */
+        static combineFeatures(encodedVec, meta) {
+            return [...encodedVec, ...meta];
+        }
+        /**
+         * Train the ELM using combined features and labels
+         */
+        train(encoded, metas, labels) {
+            if (!this.config.hiddenUnits || !this.config.activation) {
+                throw new Error("FeatureCombinerELM: config.hiddenUnits or activation is undefined.");
+            }
+            const X = encoded.map((vec, i) => FeatureCombinerELM.combineFeatures(vec, metas[i]));
+            const categories = [...new Set(labels)];
+            this.elm.setCategories(categories);
+            const Y = labels.map(label => this.elm.oneHot(categories.length, categories.indexOf(label)));
+            const W = this.elm['randomMatrix'](this.config.hiddenUnits, X[0].length);
+            const b = this.elm['randomMatrix'](this.config.hiddenUnits, 1);
+            const tempH = Matrix.multiply(X, Matrix.transpose(W));
+            const activationFn = Activations.get(this.config.activation);
+            const H = Activations.apply(tempH.map(row => row.map((val, j) => val + b[j][0])), activationFn);
+            const H_pinv = this.elm['pseudoInverse'](H);
+            const beta = Matrix.multiply(H_pinv, Y);
+            this.elm['model'] = { W, b, beta };
+        }
+        /**
+         * Predict from combined input and metadata
+         */
+        predict(encodedVec, meta, topK = 1) {
+            const input = [FeatureCombinerELM.combineFeatures(encodedVec, meta)];
+            const [results] = this.elm.predictFromVector(input, topK);
+            return results;
+        }
+    }
+
+    /**
+     * VotingClassifierELM takes predictions from multiple ELMs
+     * and learns to choose the most accurate final label.
+     * It can optionally incorporate confidence scores and calibrate model weights.
+     */
+    class VotingClassifierELM {
+        constructor(config) {
+            this.categories = config.categories || ['English', 'French', 'Spanish'];
+            this.modelWeights = [];
+            this.elm = new ELM(Object.assign(Object.assign({}, config), { useTokenizer: false, categories: this.categories }));
+        }
+        setModelWeights(weights) {
+            this.modelWeights = weights;
+        }
+        calibrateWeights(predictionLists, trueLabels) {
+            const numModels = predictionLists.length;
+            const numExamples = trueLabels.length;
+            const accuracies = new Array(numModels).fill(0);
+            for (let m = 0; m < numModels; m++) {
+                let correct = 0;
+                for (let i = 0; i < numExamples; i++) {
+                    if (predictionLists[m][i] === trueLabels[i]) {
+                        correct++;
+                    }
+                }
+                accuracies[m] = correct / numExamples;
+            }
+            const total = accuracies.reduce((sum, acc) => sum + acc, 0) || 1;
+            this.modelWeights = accuracies.map(a => a / total);
+            console.log('🔧 Calibrated model weights based on accuracy:', this.modelWeights);
+        }
+        train(predictionLists, confidenceLists, trueLabels) {
+            if (!Array.isArray(predictionLists) || predictionLists.length === 0 || !trueLabels) {
+                throw new Error('Invalid inputs to VotingClassifierELM.train');
+            }
+            const numModels = predictionLists.length;
+            const numExamples = predictionLists[0].length;
+            for (let list of predictionLists) {
+                if (list.length !== numExamples) {
+                    throw new Error('Inconsistent prediction lengths across models');
+                }
+            }
+            if (confidenceLists) {
+                if (confidenceLists.length !== numModels) {
+                    throw new Error('Confidence list count must match number of models');
+                }
+                for (let list of confidenceLists) {
+                    if (list.length !== numExamples) {
+                        throw new Error('Inconsistent confidence lengths across models');
+                    }
+                }
+            }
+            // Automatically calibrate weights if not set
+            if (!this.modelWeights || this.modelWeights.length !== numModels) {
+                this.calibrateWeights(predictionLists, trueLabels);
+            }
+            const inputs = [];
+            for (let i = 0; i < numExamples; i++) {
+                let inputRow = [];
+                for (let m = 0; m < numModels; m++) {
+                    const label = predictionLists[m][i];
+                    if (typeof label === 'undefined') {
+                        console.error(`Undefined label from model ${m} at index ${i}`);
+                        throw new Error(`Invalid label in predictionLists[${m}][${i}]`);
+                    }
+                    const weight = this.modelWeights[m];
+                    inputRow = inputRow.concat(this.oneHot(label).map(x => x * weight));
+                    if (confidenceLists) {
+                        const conf = confidenceLists[m][i];
+                        const normalizedConf = Math.min(1, Math.max(0, conf)); // Clamp to [0,1]
+                        inputRow.push(normalizedConf * weight);
+                    }
+                }
+                inputs.push(inputRow);
+            }
+            const examples = inputs.map((input, i) => ({ input, label: trueLabels[i] }));
+            console.log(`📊 VotingClassifierELM training on ${examples.length} examples with ${numModels} models.`);
+            this.elm.train(examples);
+        }
+        predict(labels, confidences) {
+            if (!Array.isArray(labels) || labels.length === 0) {
+                throw new Error('No labels provided to VotingClassifierELM.predict');
+            }
+            let input = [];
+            for (let i = 0; i < labels.length; i++) {
+                const weight = this.modelWeights[i] || 1;
+                input = input.concat(this.oneHot(labels[i]).map(x => x * weight));
+                if (confidences && typeof confidences[i] === 'number') {
+                    const norm = Math.min(1, Math.max(0, confidences[i]));
+                    input.push(norm * weight);
+                }
+            }
+            return this.elm.predict(JSON.stringify(input), 1);
+        }
+        oneHot(label) {
+            const index = this.categories.indexOf(label);
+            if (index === -1) {
+                console.warn(`Unknown label in oneHot: ${label}`);
+                return new Array(this.categories.length).fill(0);
+            }
+            return this.categories.map((_, i) => (i === index ? 1 : 0));
+        }
+    }
+
+    /**
+     * ConfidenceClassifierELM is a lightweight ELM wrapper
+     * designed to classify whether an input prediction is likely to be high or low confidence.
+     * It uses the same input format as FeatureCombinerELM (vector + meta).
+     */
+    class ConfidenceClassifierELM {
+        constructor(config) {
+            this.config = config;
+            this.elm = new ELM(Object.assign(Object.assign({}, config), { categories: ['low', 'high'], useTokenizer: false }));
+        }
+        train(vectors, metas, labels) {
+            vectors.map((vec, i) => FeatureCombinerELM.combineFeatures(vec, metas[i]));
+            const examples = vectors.map((vec, i) => ({
+                input: FeatureCombinerELM.combineFeatures(vec, metas[i]),
+                label: labels[i]
+            }));
+            // Explicitly cast to match expected training format for ELM
+            this.elm.train(examples);
+        }
+        predict(vec, meta) {
+            const input = FeatureCombinerELM.combineFeatures(vec, meta);
+            const inputStr = JSON.stringify(input);
+            return this.elm.predict(inputStr, 1);
+        }
+    }
+
+    class RefinerELM {
+        constructor(config) {
+            this.config = Object.assign(Object.assign({}, config), { useTokenizer: false, categories: [] });
+            this.elm = new ELM(this.config);
+        }
+        train(inputs, labels) {
+            const categories = [...new Set(labels)];
+            this.elm.setCategories(categories);
+            const Y = labels.map(label => this.elm.oneHot(categories.length, categories.indexOf(label)));
+            const W = this.elm['randomMatrix'](this.config.hiddenUnits, inputs[0].length);
+            const b = this.elm['randomMatrix'](this.config.hiddenUnits, 1);
+            const tempH = Matrix.multiply(inputs, Matrix.transpose(W));
+            const activationFn = Activations.get(this.config.activation);
+            const H = Activations.apply(tempH.map(row => row.map((val, j) => val + b[j][0])), activationFn);
+            const H_pinv = this.elm['pseudoInverse'](H);
+            const beta = Matrix.multiply(H_pinv, Y);
+            this.elm['model'] = { W, b, beta };
+        }
+        predict(vec) {
+            const input = [vec];
+            const model = this.elm['model'];
+            if (!model) {
+                throw new Error('EncoderELM model has not been trained yet.');
+            }
+            const { W, b, beta } = model;
+            const tempH = Matrix.multiply(input, Matrix.transpose(W));
+            const activationFn = Activations.get(this.config.activation);
+            const H = Activations.apply(tempH.map(row => row.map((val, j) => val + b[j][0])), activationFn);
+            const rawOutput = Matrix.multiply(H, beta)[0];
+            const probs = Activations.softmax(rawOutput);
+            return probs
+                .map((p, i) => ({ label: this.elm.categories[i], prob: p }))
+                .sort((a, b) => b.prob - a.prob);
+        }
+    }
+
+    class CharacterLangEncoderELM {
+        constructor(config) {
+            if (!config.hiddenUnits || !config.activation) {
+                throw new Error("CharacterLangEncoderELM requires defined hiddenUnits and activation");
+            }
+            this.config = Object.assign(Object.assign({}, config), { useTokenizer: true });
+            this.elm = new ELM(this.config);
+        }
+        train(inputStrings, labels) {
+            const categories = [...new Set(labels)];
+            this.elm.setCategories(categories);
+            this.elm.train(); // assumes encoder + categories are set
+        }
+        /**
+         * Returns dense vector (embedding) rather than label prediction
+         */
+        encode(text) {
+            const vec = this.elm.encoder.normalize(this.elm.encoder.encode(text));
+            const model = this.elm['model'];
+            if (!model) {
+                throw new Error('EncoderELM model has not been trained yet.');
+            }
+            const { W, b, beta } = model;
+            const tempH = Matrix.multiply([vec], Matrix.transpose(W));
+            const activationFn = Activations.get(this.config.activation);
+            const H = Activations.apply(tempH.map(row => row.map((val, j) => val + b[j][0])), activationFn);
+            // dense feature vector
+            return Matrix.multiply(H, beta)[0];
+        }
+    }
+
     exports.Activations = Activations;
     exports.Augment = Augment;
     exports.AutoComplete = AutoComplete;
+    exports.CharacterLangEncoderELM = CharacterLangEncoderELM;
+    exports.ConfidenceClassifierELM = ConfidenceClassifierELM;
     exports.ELM = ELM;
     exports.EncoderELM = EncoderELM;
+    exports.FeatureCombinerELM = FeatureCombinerELM;
     exports.IO = IO;
     exports.IntentClassifier = IntentClassifier;
     exports.LanguageClassifier = LanguageClassifier;
+    exports.RefinerELM = RefinerELM;
     exports.TextEncoder = TextEncoder;
     exports.Tokenizer = Tokenizer;
     exports.UniversalEncoder = UniversalEncoder;
+    exports.VotingClassifierELM = VotingClassifierELM;
     exports.bindAutocompleteUI = bindAutocompleteUI;
     exports.defaultConfig = defaultConfig;
 

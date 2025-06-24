@@ -18,6 +18,8 @@
     "dev:lang": "DEMO=language-awareness-demo vite",
     "dev:chain": "DEMO=chain-models vite",
     "dev:chain2": "DEMO=chain-with-encoder vite",
+    "dev:chain3": "DEMO=chain-encoder-feauture-combine vite",
+    "dev:chain4": "DEMO=voting vite",
     "test": "vitest"
   },
   "repository": {

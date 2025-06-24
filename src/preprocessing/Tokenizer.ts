@@ -1,27 +1,33 @@
-// Tokenizer.ts - Utility for splitting and tokenizing text inputs
-
 export class Tokenizer {
-    private delimiter: RegExp;
-
     constructor(customDelimiter?: RegExp) {
-        // Default to splitting on whitespace and punctuation
         this.delimiter = customDelimiter || /[\s,.;!?()\[\]{}"']+/;
     }
 
-    public tokenize(text: string): string[] {
+    tokenize(text: any): string[] {
+        if (typeof text !== 'string') {
+            console.warn('[Tokenizer] Expected a string, got:', typeof text, text);
+            try {
+                text = String(text ?? '');
+            } catch {
+                return [];
+            }
+        }
+
         return text
             .trim()
             .toLowerCase()
             .split(this.delimiter)
-            .filter(Boolean); // Remove empty tokens
+            .filter(Boolean);
     }
 
-    public ngrams(tokens: string[], n: number): string[] {
+    ngrams(tokens: string[], n: number): string[] {
         if (n <= 0 || tokens.length < n) return [];
-        const result: string[] = [];
+        const result = [];
         for (let i = 0; i <= tokens.length - n; i++) {
             result.push(tokens.slice(i, i + n).join(' '));
         }
         return result;
     }
-} 
+
+    private delimiter: RegExp;
+}

@@ -263,7 +263,7 @@
     // ELM.ts - Core ELM logic with TypeScript types
     class ELM {
         constructor(config) {
-            var _a, _b, _c, _d, _e, _f;
+            var _a, _b, _c, _d, _e, _f, _g, _h;
             const cfg = Object.assign(Object.assign({}, defaultConfig), config);
             this.categories = cfg.categories;
             this.hiddenUnits = cfg.hiddenUnits;
@@ -276,6 +276,7 @@
             this.metrics = this.config.metrics;
             this.verbose = (_d = (_c = cfg.log) === null || _c === void 0 ? void 0 : _c.verbose) !== null && _d !== void 0 ? _d : true;
             this.modelName = (_f = (_e = cfg.log) === null || _e === void 0 ? void 0 : _e.modelName) !== null && _f !== void 0 ? _f : 'Unnamed ELM Model';
+            this.logToFile = (_h = (_g = cfg.log) === null || _g === void 0 ? void 0 : _g.toFile) !== null && _h !== void 0 ? _h : false;
             this.encoder = new UniversalEncoder({
                 charSet: this.charSet,
                 maxLen: this.maxLen,
@@ -311,6 +312,74 @@
             }
             catch (e) {
                 console.error("❌ Failed to load model from JSON:", e);
+            }
+        }
+        trainFromData(X, Y) {
+            const W = this.randomMatrix(this.hiddenUnits, X[0].length);
+            const b = this.randomMatrix(this.hiddenUnits, 1);
+            const tempH = Matrix.multiply(X, Matrix.transpose(W));
+            const activationFn = Activations.get(this.activation);
+            const H = Activations.apply(tempH.map(row => row.map((val, j) => val + b[j][0])), activationFn);
+            const H_pinv = this.pseudoInverse(H);
+            const beta = Matrix.multiply(H_pinv, Y);
+            this.model = { W, b, beta };
+            const predictions = Matrix.multiply(H, beta);
+            const results = {};
+            let allPassed = true;
+            if (this.metrics) {
+                const rmse = this.calculateRMSE(Y, predictions);
+                const mae = this.calculateMAE(Y, predictions);
+                const acc = this.calculateAccuracy(Y, predictions);
+                const f1 = this.calculateF1Score(Y, predictions);
+                const ce = this.calculateCrossEntropy(Y, predictions);
+                const r2 = this.calculateR2Score(Y, predictions);
+                if (this.metrics.rmse !== undefined) {
+                    results.rmse = rmse;
+                    if (rmse > this.metrics.rmse)
+                        allPassed = false;
+                }
+                if (this.metrics.mae !== undefined) {
+                    results.mae = mae;
+                    if (mae > this.metrics.mae)
+                        allPassed = false;
+                }
+                if (this.metrics.accuracy !== undefined) {
+                    results.accuracy = acc;
+                    if (acc < this.metrics.accuracy)
+                        allPassed = false;
+                }
+                if (this.metrics.f1 !== undefined) {
+                    results.f1 = f1;
+                    if (f1 < this.metrics.f1)
+                        allPassed = false;
+                }
+                if (this.metrics.crossEntropy !== undefined) {
+                    results.crossEntropy = ce;
+                    if (ce > this.metrics.crossEntropy)
+                        allPassed = false;
+                }
+                if (this.metrics.r2 !== undefined) {
+                    results.r2 = r2;
+                    if (r2 < this.metrics.r2)
+                        allPassed = false;
+                }
+                if (this.verbose)
+                    this.logMetrics(results);
+                if (allPassed) {
+                    this.savedModelJSON = JSON.stringify(this.model);
+                    if (this.verbose)
+                        console.log("✅ Model passed thresholds and was saved to JSON.");
+                    if (this.config.exportFileName) {
+                        this.saveModelAsJSONFile(this.config.exportFileName);
+                    }
+                }
+                else {
+                    if (this.verbose)
+                        console.log("❌ Model not saved: One or more thresholds not met.");
+                }
+            }
+            else {
+                throw new Error("No metrics defined in config. Please specify at least one metric to evaluate.");
             }
         }
         train(augmentationOptions) {
@@ -406,17 +475,19 @@
             push('R² Score', results.r2, (_f = this.metrics) === null || _f === void 0 ? void 0 : _f.r2, '>=');
             if (this.verbose)
                 console.log('\n' + logLines.join('\n'));
-            const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-            const logFile = this.config.logFileName || `${this.modelName.toLowerCase().replace(/\s+/g, '_')}_metrics_${timestamp}.txt`;
-            const blob = new Blob([logLines.join('\n')], { type: 'text/plain' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = logFile;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
+            if (this.logToFile) {
+                const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+                const logFile = this.config.logFileName || `${this.modelName.toLowerCase().replace(/\s+/g, '_')}_metrics_${timestamp}.txt`;
+                const blob = new Blob([logLines.join('\n')], { type: 'text/plain' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = logFile;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            }
         }
         saveModelAsJSONFile(filename) {
             if (!this.savedModelJSON) {
@@ -571,15 +642,15 @@
         tokenizerDelimiter: /[\s,.;!?()\[\]{}"']+/
     };
 
-    // AutoComplete.ts - High-level autocomplete controller using ELM
+    // ✅ AutoComplete.ts patched to support (input, label) training and evaluation
     class AutoComplete {
-        constructor(categories, options) {
+        constructor(pairs, options) {
+            this.trainPairs = pairs;
+            const categories = Array.from(new Set(pairs.map(p => p.label)));
             this.elm = new ELM(Object.assign(Object.assign({}, EnglishTokenPreset), { categories, metrics: options.metrics, log: {
                     modelName: "AutoComplete",
                     verbose: options.verbose
                 }, exportFileName: options.exportFileName }));
-            // Train the model, safely handling optional augmentationOptions
-            this.elm.train(options === null || options === void 0 ? void 0 : options.augmentationOptions);
             bindAutocompleteUI({
                 model: this.elm,
                 inputElement: options.inputElement,
@@ -587,11 +658,21 @@
                 topK: options.topK
             });
         }
-        train(augmentationOptions) {
-            this.elm.train(augmentationOptions);
+        train() {
+            const X = [];
+            const Y = [];
+            for (const { input, label } of this.trainPairs) {
+                const vec = this.elm.encoder.normalize(this.elm.encoder.encode(input));
+                const labelIndex = this.elm.categories.indexOf(label);
+                if (labelIndex === -1)
+                    continue;
+                X.push(vec);
+                Y.push(this.elm.oneHot(this.elm.categories.length, labelIndex));
+            }
+            this.elm.trainFromData(X, Y);
         }
         predict(input, topN = 1) {
-            return this.elm.predict(input).slice(0, topN).map(p => ({
+            return this.elm.predict(input, topN).map(p => ({
                 completion: p.label,
                 prob: p.prob
             }));
@@ -604,6 +685,28 @@
         }
         saveModelAsJSONFile(filename) {
             this.elm.saveModelAsJSONFile(filename);
+        }
+        top1Accuracy(pairs) {
+            var _a;
+            let correct = 0;
+            for (const { input, label } of pairs) {
+                const [pred] = this.predict(input, 1);
+                if (((_a = pred === null || pred === void 0 ? void 0 : pred.completion) === null || _a === void 0 ? void 0 : _a.toLowerCase().trim()) === label.toLowerCase().trim()) {
+                    correct++;
+                }
+            }
+            return correct / pairs.length;
+        }
+        crossEntropy(pairs) {
+            var _a;
+            let totalLoss = 0;
+            for (const { input, label } of pairs) {
+                const preds = this.predict(input, 5);
+                const match = preds.find(p => p.completion.toLowerCase().trim() === label.toLowerCase().trim());
+                const prob = (_a = match === null || match === void 0 ? void 0 : match.prob) !== null && _a !== void 0 ? _a : 1e-6;
+                totalLoss += -Math.log(prob); // ⬅ switched from log2 to natural log
+            }
+            return totalLoss / pairs.length;
         }
     }
 

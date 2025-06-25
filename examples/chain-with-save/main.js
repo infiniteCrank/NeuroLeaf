@@ -9,15 +9,19 @@ const {
     LanguageClassifier
 } = window.NeuroLeaf;
 
-function tryLoadOrTrain(model, key, trainFn) {
+function tryLoadOrTrain(model, key, trainFn, evalFn = () => true) {
     const saved = localStorage.getItem(key);
     if (saved) {
         model.loadModelFromJSON(saved);
         return;
     }
     trainFn();
-    if (model.elm?.savedModelJSON) localStorage.setItem(key, model.elm.savedModelJSON);
-    else if (model.savedModelJSON) localStorage.setItem(key, model.savedModelJSON);
+    if (evalFn()) {
+        const json = model.elm?.savedModelJSON || model.savedModelJSON;
+        if (json) localStorage.setItem(key, json);
+    } else {
+        console.warn("\u274C Model not saved: thresholds not met.");
+    }
 }
 
 window.addEventListener('DOMContentLoaded', () => {
@@ -28,7 +32,7 @@ window.addEventListener('DOMContentLoaded', () => {
     const charSet = 'abcdefghijklmnopqrstuvwxyzçàéèñáéíóúü¿¡ ';
     const maxLen = 30;
 
-    const baseConfig = (hiddenUnits, exportFileName, useTokenizer = true, name = "Unnamed") => ({
+    const baseConfig = (hiddenUnits, exportFileName, useTokenizer = true, name = "Unnamed", metrics = { accuracy: 0.85 }) => ({
         charSet,
         maxLen,
         hiddenUnits,
@@ -40,7 +44,7 @@ window.addEventListener('DOMContentLoaded', () => {
             verbose: true,
             name: name
         },
-        metrics: { accuracy: 0.85 }
+        metrics: metrics
     });
 
     fetch('/language_greetings_1500.csv')
@@ -55,12 +59,33 @@ window.addEventListener('DOMContentLoaded', () => {
             const greetings = allData.map(d => d.text);
             const labels = allData.map(d => d.label);
 
-            const ac = new AutoComplete([...new Set(greetings)], {
-                ...baseConfig(40, 'ac_model.json', true, "AutoCompleteELM"),
+            const acTrainPairs = greetings.map(g => {
+                const cutoff = Math.floor(g.length * 0.6);
+                return {
+                    input: g.slice(0, cutoff).trim(),
+                    label: g.trim()
+                };
+            });
+
+            const acTestPairs = greetings.map(g => ({
+                input: g.slice(0, Math.floor(g.length * 0.6)).trim(),
+                label: g.trim()
+            }));
+
+            const ac = new AutoComplete(acTrainPairs, {
+                ...baseConfig(40, 'ac_model.json', true, "AutoCompleteELM", {
+                    crossEntropy: 1.0,
+                    top1Accuracy: 0.85,
+                }),
                 inputElement: input,
                 outputElement: output
             });
-            tryLoadOrTrain(ac, 'ac_model', () => ac.train());
+            tryLoadOrTrain(ac, 'ac_model', () => ac.train(), () => {
+                const acc = ac.top1Accuracy(acTestPairs);
+                const xent = ac.crossEntropy(acTestPairs);
+                console.log(`\u{1F4CA} AutoComplete — Accuracy: ${acc.toFixed(4)}, CrossEntropy: ${xent.toFixed(4)}`);
+                return acc >= 0.85 || xent <= 1.0;
+            });
 
             const encoder = new EncoderELM(baseConfig(32, 'encoder_model.json', true, "EncoderELM"));
             const inputVectors = greetings.map(g => encoder.elm.encoder.normalize(encoder.elm.encoder.encode(g)));

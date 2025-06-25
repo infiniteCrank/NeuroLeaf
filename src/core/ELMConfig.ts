@@ -25,7 +25,8 @@ export interface ELMConfig {
     // Logging
     log: {
         modelName?: string,
-        verbose?: boolean
+        verbose?: boolean,
+        toFile?: boolean,
     }
     logFileName?: string
 }

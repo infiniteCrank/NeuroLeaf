@@ -26,7 +26,7 @@ export class ELM {
     public useTokenizer: boolean;
     public tokenizerDelimiter?: RegExp;
     public encoder: UniversalEncoder;
-    private model: ELMModel | null;
+    public model: ELMModel | null;
     public metrics?: {
         rmse?: number;
         mae?: number;
@@ -39,6 +39,7 @@ export class ELM {
     public savedModelJSON?: string;
     public config: ELMConfig;
     public modelName: string;
+    public logToFile: boolean;
 
     constructor(config: ELMConfig & { charSet?: string; useTokenizer?: boolean; tokenizerDelimiter?: RegExp }) {
         const cfg = { ...defaultConfig, ...config };
@@ -53,6 +54,7 @@ export class ELM {
         this.metrics = this.config.metrics;
         this.verbose = cfg.log?.verbose ?? true;
         this.modelName = cfg.log?.modelName ?? 'Unnamed ELM Model';
+        this.logToFile = cfg.log?.toFile ?? false;
 
         this.encoder = new UniversalEncoder({
             charSet: this.charSet,
@@ -95,6 +97,72 @@ export class ELM {
             if (this.verbose) console.log(`✅ ${this.modelName} Model loaded from JSON`);
         } catch (e) {
             console.error("❌ Failed to load model from JSON:", e);
+        }
+    }
+
+    public trainFromData(X: number[][], Y: number[][]): void {
+        const W = this.randomMatrix(this.hiddenUnits, X[0].length);
+        const b = this.randomMatrix(this.hiddenUnits, 1);
+        const tempH = Matrix.multiply(X, Matrix.transpose(W));
+        const activationFn = Activations.get(this.activation);
+        const H = Activations.apply(tempH.map(row =>
+            row.map((val, j) => val + b[j][0])
+        ), activationFn);
+
+        const H_pinv = this.pseudoInverse(H);
+        const beta = Matrix.multiply(H_pinv, Y);
+        this.model = { W, b, beta };
+
+        const predictions = Matrix.multiply(H, beta);
+        const results: Record<string, number> = {};
+        let allPassed = true;
+
+        if (this.metrics) {
+            const rmse = this.calculateRMSE(Y, predictions);
+            const mae = this.calculateMAE(Y, predictions);
+            const acc = this.calculateAccuracy(Y, predictions);
+            const f1 = this.calculateF1Score(Y, predictions);
+            const ce = this.calculateCrossEntropy(Y, predictions);
+            const r2 = this.calculateR2Score(Y, predictions);
+
+            if (this.metrics.rmse !== undefined) {
+                results.rmse = rmse;
+                if (rmse > this.metrics.rmse) allPassed = false;
+            }
+            if (this.metrics.mae !== undefined) {
+                results.mae = mae;
+                if (mae > this.metrics.mae) allPassed = false;
+            }
+            if (this.metrics.accuracy !== undefined) {
+                results.accuracy = acc;
+                if (acc < this.metrics.accuracy) allPassed = false;
+            }
+            if (this.metrics.f1 !== undefined) {
+                results.f1 = f1;
+                if (f1 < this.metrics.f1) allPassed = false;
+            }
+            if (this.metrics.crossEntropy !== undefined) {
+                results.crossEntropy = ce;
+                if (ce > this.metrics.crossEntropy) allPassed = false;
+            }
+            if (this.metrics.r2 !== undefined) {
+                results.r2 = r2;
+                if (r2 < this.metrics.r2) allPassed = false;
+            }
+
+            if (this.verbose) this.logMetrics(results);
+
+            if (allPassed) {
+                this.savedModelJSON = JSON.stringify(this.model);
+                if (this.verbose) console.log("✅ Model passed thresholds and was saved to JSON.");
+                if (this.config.exportFileName) {
+                    this.saveModelAsJSONFile(this.config.exportFileName);
+                }
+            } else {
+                if (this.verbose) console.log("❌ Model not saved: One or more thresholds not met.");
+            }
+        } else {
+            throw new Error("No metrics defined in config. Please specify at least one metric to evaluate.");
         }
     }
 
@@ -201,18 +269,20 @@ export class ELM {
 
         if (this.verbose) console.log('\n' + logLines.join('\n'));
 
-        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-        const logFile = this.config.logFileName || `${this.modelName.toLowerCase().replace(/\s+/g, '_')}_metrics_${timestamp}.txt`;
+        if (this.logToFile) {
+            const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+            const logFile = this.config.logFileName || `${this.modelName.toLowerCase().replace(/\s+/g, '_')}_metrics_${timestamp}.txt`;
 
-        const blob = new Blob([logLines.join('\n')], { type: 'text/plain' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = logFile;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
+            const blob = new Blob([logLines.join('\n')], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = logFile;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
     }
 
     public saveModelAsJSONFile(filename?: string): void {
@@ -277,7 +347,7 @@ export class ELM {
         });
     }
 
-    private calculateRMSE(Y: number[][], P: number[][]): number {
+    public calculateRMSE(Y: number[][], P: number[][]): number {
         const N = Y.length;
         let sum = 0;
         for (let i = 0; i < N; i++) {
@@ -289,7 +359,7 @@ export class ELM {
         return Math.sqrt(sum / (N * Y[0].length));
     }
 
-    private calculateMAE(Y: number[][], P: number[][]): number {
+    public calculateMAE(Y: number[][], P: number[][]): number {
         const N = Y.length;
         let sum = 0;
         for (let i = 0; i < N; i++) {
@@ -300,7 +370,7 @@ export class ELM {
         return sum / (N * Y[0].length);
     }
 
-    private calculateAccuracy(Y: number[][], P: number[][]): number {
+    public calculateAccuracy(Y: number[][], P: number[][]): number {
         let correct = 0;
         for (let i = 0; i < Y.length; i++) {
             const yMax = Y[i].indexOf(Math.max(...Y[i]));
@@ -310,7 +380,7 @@ export class ELM {
         return correct / Y.length;
     }
 
-    private calculateF1Score(Y: number[][], P: number[][]): number {
+    public calculateF1Score(Y: number[][], P: number[][]): number {
         let tp = 0, fp = 0, fn = 0;
         for (let i = 0; i < Y.length; i++) {
             const yIdx = Y[i].indexOf(1);
@@ -326,7 +396,7 @@ export class ELM {
         return 2 * (precision * recall) / (precision + recall || 1);
     }
 
-    private calculateCrossEntropy(Y: number[][], P: number[][]): number {
+    public calculateCrossEntropy(Y: number[][], P: number[][]): number {
         let loss = 0;
         for (let i = 0; i < Y.length; i++) {
             for (let j = 0; j < Y[0].length; j++) {
@@ -337,7 +407,7 @@ export class ELM {
         return loss / Y.length;
     }
 
-    private calculateR2Score(Y: number[][], P: number[][]): number {
+    public calculateR2Score(Y: number[][], P: number[][]): number {
         const Y_mean = Y[0].map((_, j) => Y.reduce((sum, y) => sum + y[j], 0) / Y.length);
         let ssRes = 0, ssTot = 0;
         for (let i = 0; i < Y.length; i++) {

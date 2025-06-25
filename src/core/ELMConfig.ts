@@ -23,7 +23,10 @@ export interface ELMConfig {
     };
 
     // Logging
-    verbose?: boolean;
+    log: {
+        modelName?: string,
+        verbose?: boolean
+    }
     logFileName?: string
 }
 
@@ -33,5 +36,5 @@ export const defaultConfig: Required<Pick<ELMConfig, 'hiddenUnits' | 'maxLen' | 
     activation: 'relu',
     charSet: 'abcdefghijklmnopqrstuvwxyz',
     useTokenizer: false,
-    tokenizerDelimiter: /\s+/
+    tokenizerDelimiter: /\s+/,
 };

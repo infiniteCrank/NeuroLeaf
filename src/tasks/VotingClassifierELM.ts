@@ -18,11 +18,14 @@ export class VotingClassifierELM {
         this.elm = new ELM({
             ...config,
             useTokenizer: false,
-            categories: this.categories
+            categories: this.categories,
+            log: {
+                modelName: "IntentClassifier",
+                verbose: config.log.verbose
+            },
         });
 
         if (config.metrics) this.elm.metrics = config.metrics;
-        if (config.verbose) this.elm.verbose = config.verbose;
         if (config.exportFileName) this.elm.config.exportFileName = config.exportFileName;
     }
 

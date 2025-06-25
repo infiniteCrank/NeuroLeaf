@@ -28,7 +28,7 @@ window.addEventListener('DOMContentLoaded', () => {
     const charSet = 'abcdefghijklmnopqrstuvwxyzçàéèñáéíóúü¿¡ ';
     const maxLen = 30;
 
-    const baseConfig = (hiddenUnits, exportFileName, useTokenizer = true) => ({
+    const baseConfig = (hiddenUnits, exportFileName, useTokenizer = true, name = "Unnamed") => ({
         charSet,
         maxLen,
         hiddenUnits,
@@ -36,7 +36,10 @@ window.addEventListener('DOMContentLoaded', () => {
         useTokenizer,
         tokenizerDelimiter: /\s+/,
         exportFileName,
-        verbose: true,
+        log: {
+            verbose: true,
+            name: name
+        },
         metrics: { accuracy: 0.85 }
     });
 
@@ -53,13 +56,13 @@ window.addEventListener('DOMContentLoaded', () => {
             const labels = allData.map(d => d.label);
 
             const ac = new AutoComplete([...new Set(greetings)], {
-                ...baseConfig(40, 'ac_model.json'),
+                ...baseConfig(40, 'ac_model.json', true, "AutoCompleteELM"),
                 inputElement: input,
                 outputElement: output
             });
             tryLoadOrTrain(ac, 'ac_model', () => ac.train());
 
-            const encoder = new EncoderELM(baseConfig(32, 'encoder_model.json'));
+            const encoder = new EncoderELM(baseConfig(32, 'encoder_model.json', true, "EncoderELM"));
             const inputVectors = greetings.map(g => encoder.elm.encoder.normalize(encoder.elm.encoder.encode(g)));
             tryLoadOrTrain(encoder, 'encoder_model', () => encoder.train(greetings, inputVectors));
 
@@ -77,13 +80,13 @@ window.addEventListener('DOMContentLoaded', () => {
             encoder.train(greetings, encodedTargets);
 
             const classifier = new LanguageClassifier({
-                ...baseConfig(50, 'lang_model.json'),
+                ...baseConfig(50, 'lang_model.json', true, "LanguageClassifier"),
                 categories: ['English', 'French', 'Spanish']
             });
             const classifierData = greetings.map((g, i) => ({ vector: encoder.encode(g), label: labels[i] }));
             tryLoadOrTrain(classifier, 'lang_model', () => classifier.trainVectors(classifierData));
 
-            const langEncoder = new CharacterLangEncoderELM(baseConfig(64, 'langEncoder_model.json'));
+            const langEncoder = new CharacterLangEncoderELM(baseConfig(64, 'langEncoder_model.json', true, "CharacterLangEncoderELM"));
             tryLoadOrTrain(langEncoder, 'langEncoder_model', () => langEncoder.train(greetings, labels));
 
             const normalize = vec => {
@@ -100,7 +103,7 @@ window.addEventListener('DOMContentLoaded', () => {
                 (g.match(/[.,!?]/g) || []).length / g.length
             ]));
 
-            const combiner = new FeatureCombinerELM(baseConfig(128, 'combiner_model.json', false));
+            const combiner = new FeatureCombinerELM(baseConfig(128, 'combiner_model.json', false, "FeatureCombinerELM"));
             tryLoadOrTrain(combiner, 'combiner_model', () => combiner.train(vectors, metas, labels));
 
             const combinedInputs = vectors.map((vec, i) => FeatureCombinerELM.combineFeatures(vec, metas[i]));
@@ -112,7 +115,7 @@ window.addEventListener('DOMContentLoaded', () => {
                 return (lowProb || incorrect) ? 'low' : 'high';
             });
 
-            const confidenceClassifier = new ConfidenceClassifierELM(baseConfig(64, 'conf_model.json', false));
+            const confidenceClassifier = new ConfidenceClassifierELM(baseConfig(64, 'conf_model.json', false, "ConfidenceClassifierELM"));
             tryLoadOrTrain(confidenceClassifier, 'conf_model', () => confidenceClassifier.train(vectors, metas, confidenceLabels));
 
             const LOW_CONF = 0.8;
@@ -120,7 +123,7 @@ window.addEventListener('DOMContentLoaded', () => {
                 .map((res, i) => ({ vector: combinedInputs[i], actual: labels[i], predicted: res.label, label: labels[i], prob: res.prob }))
                 .filter(d => d.prob < LOW_CONF || d.predicted !== d.actual);
 
-            const refiner = new RefinerELM(baseConfig(64, 'refiner_model.json', false));
+            const refiner = new RefinerELM(baseConfig(64, 'refiner_model.json', false, "RefinerELM"));
             tryLoadOrTrain(refiner, 'refiner_model', () => {
                 if (lowConfidence.length > 0) {
                     refiner.train(

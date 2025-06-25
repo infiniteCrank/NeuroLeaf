@@ -18,13 +18,16 @@ export class FeatureCombinerELM {
         this.config = {
             ...config,
             categories: [],
-            useTokenizer: false // this ELM takes numeric vectors
+            useTokenizer: false, // this ELM takes numeric vectors
+            log: {
+                modelName: "FeatureCombinerELM",
+                verbose: config.log.verbose
+            },
         };
 
         this.elm = new ELM(this.config);
 
         if (config.metrics) this.elm.metrics = config.metrics;
-        if (config.verbose) this.elm.verbose = config.verbose;
         if (config.exportFileName) this.elm.config.exportFileName = config.exportFileName;
     }
 

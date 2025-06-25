@@ -9,11 +9,16 @@ export class IntentClassifier {
     private config: ELMConfig;
 
     constructor(config: ELMConfig) {
-        this.config = config;
+        this.config = {
+            ...config,
+            log: {
+                modelName: "IntentClassifier",
+                verbose: config.log.verbose
+            },
+        };
         this.model = new ELM(config);
 
         if (config.metrics) this.model.metrics = config.metrics;
-        if (config.verbose) this.model.verbose = config.verbose;
         if (config.exportFileName) this.model.config.exportFileName = config.exportFileName;
     }
 

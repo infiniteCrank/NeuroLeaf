@@ -25,7 +25,10 @@ export class AutoComplete {
             ...EnglishTokenPreset,
             categories,
             metrics: options.metrics,
-            verbose: options.verbose,
+            log: {
+                modelName: "AutoComplete",
+                verbose: options.verbose
+            },
             exportFileName: options.exportFileName
         });
 

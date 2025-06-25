@@ -35,9 +35,10 @@ export class ELM {
         crossEntropy?: number;
         r2?: number;
     };
-    public verbose?: boolean;
+    public verbose: boolean;
     public savedModelJSON?: string;
     public config: ELMConfig;
+    public modelName: string;
 
     constructor(config: ELMConfig & { charSet?: string; useTokenizer?: boolean; tokenizerDelimiter?: RegExp }) {
         const cfg = { ...defaultConfig, ...config };
@@ -50,6 +51,8 @@ export class ELM {
         this.tokenizerDelimiter = cfg.tokenizerDelimiter;
         this.config = cfg;
         this.metrics = this.config.metrics;
+        this.verbose = cfg.log?.verbose ?? true;
+        this.modelName = cfg.log?.modelName ?? 'Unnamed ELM Model';
 
         this.encoder = new UniversalEncoder({
             charSet: this.charSet,
@@ -89,7 +92,7 @@ export class ELM {
             const parsed: ELMModel = JSON.parse(json);
             this.model = parsed;
             this.savedModelJSON = json;
-            if (this.verbose) console.log("✅ Model loaded from JSON");
+            if (this.verbose) console.log(`✅ ${this.modelName} Model loaded from JSON`);
         } catch (e) {
             console.error("❌ Failed to load model from JSON:", e);
         }
@@ -185,7 +188,7 @@ export class ELM {
     }
 
     private logMetrics(results: Record<string, number>): void {
-        const logLines: string[] = ['📊 Metrics Summary:'];
+        const logLines: string[] = [`📋 ${this.modelName} — Metrics Summary:`];
         const push = (label: string, value: number, threshold: number | undefined, cmp: string) => {
             if (threshold !== undefined) logLines.push(`  ${label}: ${value.toFixed(4)} (threshold: ${cmp} ${threshold})`);
         };
@@ -196,38 +199,43 @@ export class ELM {
         push('Cross-Entropy', results.crossEntropy!, this.metrics?.crossEntropy, '<=');
         push('R² Score', results.r2!, this.metrics?.r2, '>=');
 
-        console.log('\n' + logLines.join('\n'));
+        if (this.verbose) console.log('\n' + logLines.join('\n'));
 
-        if (this.config.logFileName) {
-            const blob = new Blob([logLines.join('\n')], { type: 'text/plain' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = this.config.logFileName;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-        }
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+        const logFile = this.config.logFileName || `${this.modelName.toLowerCase().replace(/\s+/g, '_')}_metrics_${timestamp}.txt`;
+
+        const blob = new Blob([logLines.join('\n')], { type: 'text/plain' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = logFile;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
     }
 
-    public saveModelAsJSONFile(filename: string = "elm_model.json"): void {
+    public saveModelAsJSONFile(filename?: string): void {
         if (!this.savedModelJSON) {
             if (this.verbose) console.warn("No model saved — did not meet metric thresholds.");
             return;
         }
 
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+        const fallback = `${this.modelName.toLowerCase().replace(/\s+/g, '_')}_${timestamp}.json`;
+        const finalName = filename || this.config.exportFileName || fallback;
+
         const blob = new Blob([this.savedModelJSON], { type: "application/json" });
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = url;
-        a.download = filename;
+        a.download = finalName;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
 
-        if (this.verbose) console.log(`📦 Model exported as ${filename}`);
+        if (this.verbose) console.log(`📦 Model exported as ${finalName}`);
     }
 
     public predict(text: string, topK: number = 5): PredictResult[] {

@@ -11,13 +11,16 @@ export class RefinerELM {
         this.config = {
             ...config,
             useTokenizer: false,
-            categories: []
+            categories: [],
+            log: {
+                modelName: "IntentClassifier",
+                verbose: config.log.verbose
+            },
         };
 
         this.elm = new ELM(this.config);
 
         if (config.metrics) this.elm.metrics = config.metrics;
-        if (config.verbose) this.elm.verbose = config.verbose;
         if (config.exportFileName) this.elm.config.exportFileName = config.exportFileName;
     }
 

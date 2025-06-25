@@ -14,6 +14,10 @@ export class CharacterLangEncoderELM {
 
         this.config = {
             ...config,
+            log: {
+                modelName: "CharacterLangEncoderELM",
+                verbose: config.log.verbose
+            },
             useTokenizer: true
         };
 
@@ -21,7 +25,6 @@ export class CharacterLangEncoderELM {
 
         // Forward ELM-specific options
         if (config.metrics) this.elm.metrics = config.metrics;
-        if (config.verbose) this.elm.verbose = config.verbose;
         if (config.exportFileName) this.elm.config.exportFileName = config.exportFileName;
     }
 

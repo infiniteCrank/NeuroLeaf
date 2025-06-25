@@ -107,7 +107,7 @@
         activation: 'relu',
         charSet: 'abcdefghijklmnopqrstuvwxyz',
         useTokenizer: false,
-        tokenizerDelimiter: /\s+/
+        tokenizerDelimiter: /\s+/,
     };
 
     class Tokenizer {
@@ -263,7 +263,7 @@
     // ELM.ts - Core ELM logic with TypeScript types
     class ELM {
         constructor(config) {
-            var _a, _b;
+            var _a, _b, _c, _d, _e, _f;
             const cfg = Object.assign(Object.assign({}, defaultConfig), config);
             this.categories = cfg.categories;
             this.hiddenUnits = cfg.hiddenUnits;
@@ -274,6 +274,8 @@
             this.tokenizerDelimiter = cfg.tokenizerDelimiter;
             this.config = cfg;
             this.metrics = this.config.metrics;
+            this.verbose = (_d = (_c = cfg.log) === null || _c === void 0 ? void 0 : _c.verbose) !== null && _d !== void 0 ? _d : true;
+            this.modelName = (_f = (_e = cfg.log) === null || _e === void 0 ? void 0 : _e.modelName) !== null && _f !== void 0 ? _f : 'Unnamed ELM Model';
             this.encoder = new UniversalEncoder({
                 charSet: this.charSet,
                 maxLen: this.maxLen,
@@ -305,7 +307,7 @@
                 this.model = parsed;
                 this.savedModelJSON = json;
                 if (this.verbose)
-                    console.log("✅ Model loaded from JSON");
+                    console.log(`✅ ${this.modelName} Model loaded from JSON`);
             }
             catch (e) {
                 console.error("❌ Failed to load model from JSON:", e);
@@ -329,36 +331,53 @@
             const H_pinv = this.pseudoInverse(H);
             const beta = Matrix.multiply(H_pinv, Y);
             this.model = { W, b, beta };
-            // --- Evaluation and Conditional Save ---
             const predictions = Matrix.multiply(H, beta);
             const results = {};
             let allPassed = true;
             if (this.metrics) {
+                const rmse = this.calculateRMSE(Y, predictions);
+                const mae = this.calculateMAE(Y, predictions);
+                const acc = this.calculateAccuracy(Y, predictions);
+                const f1 = this.calculateF1Score(Y, predictions);
+                const ce = this.calculateCrossEntropy(Y, predictions);
+                const r2 = this.calculateR2Score(Y, predictions);
                 if (this.metrics.rmse !== undefined) {
-                    const rmse = this.calculateRMSE(Y, predictions);
                     results.rmse = rmse;
                     if (rmse > this.metrics.rmse)
                         allPassed = false;
                 }
                 if (this.metrics.mae !== undefined) {
-                    const mae = this.calculateMAE(Y, predictions);
                     results.mae = mae;
                     if (mae > this.metrics.mae)
                         allPassed = false;
                 }
                 if (this.metrics.accuracy !== undefined) {
-                    const acc = this.calculateAccuracy(Y, predictions);
                     results.accuracy = acc;
                     if (acc < this.metrics.accuracy)
                         allPassed = false;
                 }
+                if (this.metrics.f1 !== undefined) {
+                    results.f1 = f1;
+                    if (f1 < this.metrics.f1)
+                        allPassed = false;
+                }
+                if (this.metrics.crossEntropy !== undefined) {
+                    results.crossEntropy = ce;
+                    if (ce > this.metrics.crossEntropy)
+                        allPassed = false;
+                }
+                if (this.metrics.r2 !== undefined) {
+                    results.r2 = r2;
+                    if (r2 < this.metrics.r2)
+                        allPassed = false;
+                }
                 if (this.verbose) {
-                    console.log("Evaluation Results:", results);
+                    this.logMetrics(results);
                 }
                 if (allPassed) {
                     this.savedModelJSON = JSON.stringify(this.model);
                     if (this.verbose)
-                        console.log("✅ Model saved: All metric thresholds met.");
+                        console.log("✅ Model passed thresholds and was saved to JSON.");
                     if (this.config.exportFileName) {
                         this.saveModelAsJSONFile(this.config.exportFileName);
                     }
@@ -372,23 +391,53 @@
                 throw new Error("No metrics defined in config. Please specify at least one metric to evaluate.");
             }
         }
-        saveModelAsJSONFile(filename = "elm_model.json") {
+        logMetrics(results) {
+            var _a, _b, _c, _d, _e, _f;
+            const logLines = [`📋 ${this.modelName} — Metrics Summary:`];
+            const push = (label, value, threshold, cmp) => {
+                if (threshold !== undefined)
+                    logLines.push(`  ${label}: ${value.toFixed(4)} (threshold: ${cmp} ${threshold})`);
+            };
+            push('RMSE', results.rmse, (_a = this.metrics) === null || _a === void 0 ? void 0 : _a.rmse, '<=');
+            push('MAE', results.mae, (_b = this.metrics) === null || _b === void 0 ? void 0 : _b.mae, '<=');
+            push('Accuracy', results.accuracy, (_c = this.metrics) === null || _c === void 0 ? void 0 : _c.accuracy, '>=');
+            push('F1 Score', results.f1, (_d = this.metrics) === null || _d === void 0 ? void 0 : _d.f1, '>=');
+            push('Cross-Entropy', results.crossEntropy, (_e = this.metrics) === null || _e === void 0 ? void 0 : _e.crossEntropy, '<=');
+            push('R² Score', results.r2, (_f = this.metrics) === null || _f === void 0 ? void 0 : _f.r2, '>=');
+            if (this.verbose)
+                console.log('\n' + logLines.join('\n'));
+            const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+            const logFile = this.config.logFileName || `${this.modelName.toLowerCase().replace(/\s+/g, '_')}_metrics_${timestamp}.txt`;
+            const blob = new Blob([logLines.join('\n')], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = logFile;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+        saveModelAsJSONFile(filename) {
             if (!this.savedModelJSON) {
                 if (this.verbose)
                     console.warn("No model saved — did not meet metric thresholds.");
                 return;
             }
+            const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+            const fallback = `${this.modelName.toLowerCase().replace(/\s+/g, '_')}_${timestamp}.json`;
+            const finalName = filename || this.config.exportFileName || fallback;
             const blob = new Blob([this.savedModelJSON], { type: "application/json" });
             const url = URL.createObjectURL(blob);
             const a = document.createElement("a");
             a.href = url;
-            a.download = filename;
+            a.download = finalName;
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);
             URL.revokeObjectURL(url);
             if (this.verbose)
-                console.log(`📦 Model exported as ${filename}`);
+                console.log(`📦 Model exported as ${finalName}`);
         }
         predict(text, topK = 5) {
             if (!this.model)
@@ -451,6 +500,43 @@
             }
             return correct / Y.length;
         }
+        calculateF1Score(Y, P) {
+            let tp = 0, fp = 0, fn = 0;
+            for (let i = 0; i < Y.length; i++) {
+                const yIdx = Y[i].indexOf(1);
+                const pIdx = P[i].indexOf(Math.max(...P[i]));
+                if (yIdx === pIdx)
+                    tp++;
+                else {
+                    fp++;
+                    fn++;
+                }
+            }
+            const precision = tp / (tp + fp || 1);
+            const recall = tp / (tp + fn || 1);
+            return 2 * (precision * recall) / (precision + recall || 1);
+        }
+        calculateCrossEntropy(Y, P) {
+            let loss = 0;
+            for (let i = 0; i < Y.length; i++) {
+                for (let j = 0; j < Y[0].length; j++) {
+                    const pred = Math.min(Math.max(P[i][j], 1e-15), 1 - 1e-15);
+                    loss += -Y[i][j] * Math.log(pred);
+                }
+            }
+            return loss / Y.length;
+        }
+        calculateR2Score(Y, P) {
+            const Y_mean = Y[0].map((_, j) => Y.reduce((sum, y) => sum + y[j], 0) / Y.length);
+            let ssRes = 0, ssTot = 0;
+            for (let i = 0; i < Y.length; i++) {
+                for (let j = 0; j < Y[0].length; j++) {
+                    ssRes += Math.pow(Y[i][j] - P[i][j], 2);
+                    ssTot += Math.pow(Y[i][j] - Y_mean[j], 2);
+                }
+            }
+            return 1 - ssRes / ssTot;
+        }
     }
 
     // BindUI.ts - Utility to bind ELM model to HTML inputs and outputs
@@ -488,7 +574,10 @@
     // AutoComplete.ts - High-level autocomplete controller using ELM
     class AutoComplete {
         constructor(categories, options) {
-            this.elm = new ELM(Object.assign(Object.assign({}, EnglishTokenPreset), { categories, metrics: options.metrics, verbose: options.verbose, exportFileName: options.exportFileName }));
+            this.elm = new ELM(Object.assign(Object.assign({}, EnglishTokenPreset), { categories, metrics: options.metrics, log: {
+                    modelName: "AutoComplete",
+                    verbose: options.verbose
+                }, exportFileName: options.exportFileName }));
             // Train the model, safely handling optional augmentationOptions
             this.elm.train(options === null || options === void 0 ? void 0 : options.augmentationOptions);
             bindAutocompleteUI({
@@ -529,12 +618,13 @@
             if (!config.activation) {
                 throw new Error('EncoderELM requires config.activation to be defined');
             }
-            this.config = Object.assign(Object.assign({}, config), { categories: [], useTokenizer: true });
+            this.config = Object.assign(Object.assign({}, config), { categories: [], useTokenizer: true, log: {
+                    modelName: "EncoderELM",
+                    verbose: config.log.verbose
+                } });
             this.elm = new ELM(this.config);
             if (config.metrics)
                 this.elm.metrics = config.metrics;
-            if (config.verbose)
-                this.elm.verbose = config.verbose;
             if (config.exportFileName)
                 this.elm.config.exportFileName = config.exportFileName;
         }
@@ -581,12 +671,13 @@
     // intentClassifier.ts - ELM-based intent classification engine
     class IntentClassifier {
         constructor(config) {
-            this.config = config;
+            this.config = Object.assign(Object.assign({}, config), { log: {
+                    modelName: "IntentClassifier",
+                    verbose: config.log.verbose
+                } });
             this.model = new ELM(config);
             if (config.metrics)
                 this.model.metrics = config.metrics;
-            if (config.verbose)
-                this.model.verbose = config.verbose;
             if (config.exportFileName)
                 this.model.config.exportFileName = config.exportFileName;
         }
@@ -733,12 +824,13 @@
     class LanguageClassifier {
         constructor(config) {
             this.trainSamples = {};
-            this.config = config;
+            this.config = Object.assign(Object.assign({}, config), { log: {
+                    modelName: "IntentClassifier",
+                    verbose: config.log.verbose
+                } });
             this.elm = new ELM(config);
             if (config.metrics)
                 this.elm.metrics = config.metrics;
-            if (config.verbose)
-                this.elm.verbose = config.verbose;
             if (config.exportFileName)
                 this.elm.config.exportFileName = config.exportFileName;
         }
@@ -819,13 +911,13 @@
             if (!config.activation) {
                 throw new Error('FeatureCombinerELM requires activation');
             }
-            this.config = Object.assign(Object.assign({}, config), { categories: [], useTokenizer: false // this ELM takes numeric vectors
-             });
+            this.config = Object.assign(Object.assign({}, config), { categories: [], useTokenizer: false, log: {
+                    modelName: "FeatureCombinerELM",
+                    verbose: config.log.verbose
+                } });
             this.elm = new ELM(this.config);
             if (config.metrics)
                 this.elm.metrics = config.metrics;
-            if (config.verbose)
-                this.elm.verbose = config.verbose;
             if (config.exportFileName)
                 this.elm.config.exportFileName = config.exportFileName;
         }
@@ -880,11 +972,12 @@
         constructor(config) {
             this.categories = config.categories || ['English', 'French', 'Spanish'];
             this.modelWeights = [];
-            this.elm = new ELM(Object.assign(Object.assign({}, config), { useTokenizer: false, categories: this.categories }));
+            this.elm = new ELM(Object.assign(Object.assign({}, config), { useTokenizer: false, categories: this.categories, log: {
+                    modelName: "IntentClassifier",
+                    verbose: config.log.verbose
+                } }));
             if (config.metrics)
                 this.elm.metrics = config.metrics;
-            if (config.verbose)
-                this.elm.verbose = config.verbose;
             if (config.exportFileName)
                 this.elm.config.exportFileName = config.exportFileName;
         }
@@ -994,12 +1087,13 @@
     class ConfidenceClassifierELM {
         constructor(config) {
             this.config = config;
-            this.elm = new ELM(Object.assign(Object.assign({}, config), { categories: ['low', 'high'], useTokenizer: false }));
+            this.elm = new ELM(Object.assign(Object.assign({}, config), { categories: ['low', 'high'], useTokenizer: false, log: {
+                    modelName: "ConfidenceClassifierELM",
+                    verbose: config.log.verbose
+                } }));
             // Forward optional ELM config extensions
             if (config.metrics)
                 this.elm.metrics = config.metrics;
-            if (config.verbose)
-                this.elm.verbose = config.verbose;
             if (config.exportFileName)
                 this.elm.config.exportFileName = config.exportFileName;
         }
@@ -1026,12 +1120,13 @@
 
     class RefinerELM {
         constructor(config) {
-            this.config = Object.assign(Object.assign({}, config), { useTokenizer: false, categories: [] });
+            this.config = Object.assign(Object.assign({}, config), { useTokenizer: false, categories: [], log: {
+                    modelName: "IntentClassifier",
+                    verbose: config.log.verbose
+                } });
             this.elm = new ELM(this.config);
             if (config.metrics)
                 this.elm.metrics = config.metrics;
-            if (config.verbose)
-                this.elm.verbose = config.verbose;
             if (config.exportFileName)
                 this.elm.config.exportFileName = config.exportFileName;
         }
@@ -1077,13 +1172,14 @@
             if (!config.hiddenUnits || !config.activation) {
                 throw new Error("CharacterLangEncoderELM requires defined hiddenUnits and activation");
             }
-            this.config = Object.assign(Object.assign({}, config), { useTokenizer: true });
+            this.config = Object.assign(Object.assign({}, config), { log: {
+                    modelName: "CharacterLangEncoderELM",
+                    verbose: config.log.verbose
+                }, useTokenizer: true });
             this.elm = new ELM(this.config);
             // Forward ELM-specific options
             if (config.metrics)
                 this.elm.metrics = config.metrics;
-            if (config.verbose)
-                this.elm.verbose = config.verbose;
             if (config.exportFileName)
                 this.elm.config.exportFileName = config.exportFileName;
         }

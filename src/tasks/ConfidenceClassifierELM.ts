@@ -14,12 +14,15 @@ export class ConfidenceClassifierELM {
         this.elm = new ELM({
             ...config,
             categories: ['low', 'high'],
-            useTokenizer: false
+            useTokenizer: false,
+            log: {
+                modelName: "ConfidenceClassifierELM",
+                verbose: config.log.verbose
+            },
         });
 
         // Forward optional ELM config extensions
         if (config.metrics) this.elm.metrics = config.metrics;
-        if (config.verbose) this.elm.verbose = config.verbose;
         if (config.exportFileName) this.elm.config.exportFileName = config.exportFileName;
     }
 

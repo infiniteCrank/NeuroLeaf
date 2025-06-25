@@ -24,6 +24,7 @@ export interface ELMConfig {
 
     // Logging
     verbose?: boolean;
+    logFileName?: string
 }
 
 export const defaultConfig: Required<Pick<ELMConfig, 'hiddenUnits' | 'maxLen' | 'activation' | 'charSet' | 'useTokenizer' | 'tokenizerDelimiter'>> = {

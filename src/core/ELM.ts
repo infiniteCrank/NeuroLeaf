@@ -96,7 +96,7 @@ export class ELM {
             this.savedModelJSON = json;
             if (this.verbose) console.log(`✅ ${this.modelName} Model loaded from JSON`);
         } catch (e) {
-            console.error("❌ Failed to load model from JSON:", e);
+            console.error(`❌ Failed to load ${this.modelName} model from JSON:`, e);
         }
     }
 

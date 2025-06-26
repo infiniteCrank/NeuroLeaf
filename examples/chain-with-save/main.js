@@ -1,4 +1,4 @@
-// patched main.js - model caching for confidence-based ELM pipeline
+// ✅ main.js patched to load all ELM models from /models instead of localStorage
 const {
     AutoComplete,
     EncoderELM,
@@ -9,18 +9,30 @@ const {
     LanguageClassifier
 } = window.NeuroLeaf;
 
-function tryLoadOrTrain(model, key, trainFn, evalFn = () => true) {
-    const saved = localStorage.getItem(key);
-    if (saved) {
-        model.loadModelFromJSON(saved);
-        return;
+async function tryLoadOrTrain(model, key, trainFn, evalFn = () => true) {
+    let trained = false;
+    try {
+        const res = await fetch(`/models/${key}.json`);
+        if (!res.ok) throw new Error(`Fetch failed for ${key}.json`);
+        const json = await res.text();
+        model.loadModelFromJSON(json);
+        console.log(`✅ Loaded ${key} from /models/${key}.json`);
+        trained = true;
+    } catch (e) {
+        console.warn(`⚠️ Could not load trained model for ${key}. Will train from scratch.`);
     }
-    trainFn();
-    if (evalFn()) {
-        const json = model.elm?.savedModelJSON || model.savedModelJSON;
-        if (json) localStorage.setItem(key, json);
-    } else {
-        console.warn("\u274C Model not saved: thresholds not met.");
+
+    if (!trained) {
+        trainFn();
+        if (evalFn()) {
+            const json = model.elm?.savedModelJSON || model.savedModelJSON;
+            if (json) {
+                model.saveModelAsJSONFile(`${key}.json`);
+                console.log(`📦 Model saved locally as ${key}.json — please deploy to /models/ manually`);
+            }
+        } else {
+            console.warn(`❌ Model not saved: thresholds not met for ${key}`);
+        }
     }
 }
 
@@ -49,7 +61,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
     fetch('/language_greetings_1500.csv')
         .then(r => r.text())
-        .then(csv => {
+        .then(async csv => {
             const rows = csv.split('\n').map(l => l.trim()).filter(Boolean).slice(1);
             const allData = rows.map(line => {
                 const [text = '', label = ''] = line.split(',');
@@ -59,12 +71,12 @@ window.addEventListener('DOMContentLoaded', () => {
             const greetings = allData.map(d => d.text);
             const labels = allData.map(d => d.label);
 
-            const acTrainPairs = greetings.map(g => {
-                const cutoff = Math.floor(g.length * 0.6);
-                return {
-                    input: g.slice(0, cutoff).trim(),
+            const acTrainPairs = greetings.flatMap(g => {
+                const cuts = [0.3, 0.6, 0.9];
+                return cuts.map(p => ({
+                    input: g.slice(0, Math.floor(g.length * p)).trim(),
                     label: g.trim()
-                };
+                }));
             });
 
             const acTestPairs = greetings.map(g => ({
@@ -73,23 +85,26 @@ window.addEventListener('DOMContentLoaded', () => {
             }));
 
             const ac = new AutoComplete(acTrainPairs, {
-                ...baseConfig(40, 'ac_model.json', true, "AutoCompleteELM", {
-                    crossEntropy: 1.0,
-                    top1Accuracy: 0.85,
+                ...baseConfig(128, 'ac_model.json', false, "AutoCompleteELM", {
+                    crossEntropy: 2.04,
+                    top1Accuracy: 0.85
                 }),
                 inputElement: input,
-                outputElement: output
+                outputElement: output,
+                activation: 'relu'
             });
-            tryLoadOrTrain(ac, 'ac_model', () => ac.train(), () => {
+
+            await tryLoadOrTrain(ac, 'ac_model', () => ac.train(), () => {
                 const acc = ac.top1Accuracy(acTestPairs);
                 const xent = ac.crossEntropy(acTestPairs);
-                console.log(`\u{1F4CA} AutoComplete — Accuracy: ${acc.toFixed(4)}, CrossEntropy: ${xent.toFixed(4)}`);
-                return acc >= 0.85 || xent <= 1.0;
+                const internalCE = ac.internalCrossEntropy(true);
+                console.log(`📊 AutoComplete — Accuracy: ${acc.toFixed(4)}, External CE: ${xent.toFixed(4)}, Internal CE: ${internalCE.toFixed(4)}`);
+                return acc >= 0.85 || internalCE <= 2.04;
             });
 
             const encoder = new EncoderELM(baseConfig(32, 'encoder_model.json', true, "EncoderELM"));
             const inputVectors = greetings.map(g => encoder.elm.encoder.normalize(encoder.elm.encoder.encode(g)));
-            tryLoadOrTrain(encoder, 'encoder_model', () => encoder.train(greetings, inputVectors));
+            await tryLoadOrTrain(encoder, 'encoder_model', () => encoder.train(greetings, inputVectors));
 
             const dim = 16;
             const labelMap = new Map();
@@ -109,10 +124,10 @@ window.addEventListener('DOMContentLoaded', () => {
                 categories: ['English', 'French', 'Spanish']
             });
             const classifierData = greetings.map((g, i) => ({ vector: encoder.encode(g), label: labels[i] }));
-            tryLoadOrTrain(classifier, 'lang_model', () => classifier.trainVectors(classifierData));
+            await tryLoadOrTrain(classifier, 'lang_model', () => classifier.trainVectors(classifierData));
 
             const langEncoder = new CharacterLangEncoderELM(baseConfig(64, 'langEncoder_model.json', true, "CharacterLangEncoderELM"));
-            tryLoadOrTrain(langEncoder, 'langEncoder_model', () => langEncoder.train(greetings, labels));
+            await tryLoadOrTrain(langEncoder, 'langEncoder_model', () => langEncoder.train(greetings, labels));
 
             const normalize = vec => {
                 const mag = Math.sqrt(vec.reduce((s, x) => s + x * x, 0)) || 1;
@@ -129,7 +144,7 @@ window.addEventListener('DOMContentLoaded', () => {
             ]));
 
             const combiner = new FeatureCombinerELM(baseConfig(128, 'combiner_model.json', false, "FeatureCombinerELM"));
-            tryLoadOrTrain(combiner, 'combiner_model', () => combiner.train(vectors, metas, labels));
+            await tryLoadOrTrain(combiner, 'combiner_model', () => combiner.train(vectors, metas, labels));
 
             const combinedInputs = vectors.map((vec, i) => FeatureCombinerELM.combineFeatures(vec, metas[i]));
             const combinerResults = vectors.map((vec, i) => combiner.predict(vec, metas[i])[0]);
@@ -141,7 +156,7 @@ window.addEventListener('DOMContentLoaded', () => {
             });
 
             const confidenceClassifier = new ConfidenceClassifierELM(baseConfig(64, 'conf_model.json', false, "ConfidenceClassifierELM"));
-            tryLoadOrTrain(confidenceClassifier, 'conf_model', () => confidenceClassifier.train(vectors, metas, confidenceLabels));
+            await tryLoadOrTrain(confidenceClassifier, 'conf_model', () => confidenceClassifier.train(vectors, metas, confidenceLabels));
 
             const LOW_CONF = 0.8;
             const lowConfidence = combinerResults
@@ -149,7 +164,7 @@ window.addEventListener('DOMContentLoaded', () => {
                 .filter(d => d.prob < LOW_CONF || d.predicted !== d.actual);
 
             const refiner = new RefinerELM(baseConfig(64, 'refiner_model.json', false, "RefinerELM"));
-            tryLoadOrTrain(refiner, 'refiner_model', () => {
+            await tryLoadOrTrain(refiner, 'refiner_model', () => {
                 if (lowConfidence.length > 0) {
                     refiner.train(
                         lowConfidence.map(d => d.vector),

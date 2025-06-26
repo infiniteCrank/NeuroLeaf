@@ -9,29 +9,41 @@ const {
     LanguageClassifier
 } = window.NeuroLeaf;
 
-async function tryLoadOrTrain(model, key, trainFn, evalFn = () => true) {
+async function tryLoadOrTrain(model, key, trainFn, evalFn = () => ({ passed: true, metrics: {} })) {
     let trained = false;
     try {
         const res = await fetch(`/models/${key}.json`);
         if (!res.ok) throw new Error(`Fetch failed for ${key}.json`);
         const json = await res.text();
+        if (json.trim().startsWith('<!DOCTYPE')) throw new Error(`Received HTML instead of JSON`);
         model.loadModelFromJSON(json);
         console.log(`✅ Loaded ${key} from /models/${key}.json`);
         trained = true;
     } catch (e) {
-        console.warn(`⚠️ Could not load trained model for ${key}. Will train from scratch.`);
+        console.warn(`⚠️ Could not load trained model for ${key}. Will train from scratch.\nReason: ${e.message}`);
     }
 
     if (!trained) {
         trainFn();
-        if (evalFn()) {
+
+        const result = evalFn();
+        const passed = result.passed;
+        const metrics = result.metrics || {};
+
+        // Report metrics
+        console.log(`📊 Evaluation for ${key}:`);
+        for (const [metric, { value, threshold, passed }] of Object.entries(metrics)) {
+            console.log(` - ${metric}: ${value} (threshold: ${threshold}) ${passed ? '✅' : '❌'}`);
+        }
+
+        if (passed) {
             const json = model.elm?.savedModelJSON || model.savedModelJSON;
             if (json) {
                 model.saveModelAsJSONFile(`${key}.json`);
                 console.log(`📦 Model saved locally as ${key}.json — please deploy to /models/ manually`);
             }
         } else {
-            console.warn(`❌ Model not saved: thresholds not met for ${key}`);
+            console.warn(`❌ Model not saved: one or more thresholds not met for ${key}`);
         }
     }
 }

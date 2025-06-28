@@ -1,6 +1,6 @@
-// Matrix.ts - Matrix operations for ELM without external dependencies
-
 export class Matrix {
+    constructor(public data: number[][]) { }
+
     static multiply(A: number[][], B: number[][]): number[][] {
         const result: number[][] = [];
         for (let i = 0; i < A.length; i++) {
@@ -27,10 +27,9 @@ export class Matrix {
     }
 
     static addRegularization(A: number[][], lambda: number): number[][] {
-        const result = A.map((row, i) =>
+        return A.map((row, i) =>
             row.map((val, j) => val + (i === j ? lambda : 0))
         );
-        return result;
     }
 
     static inverse(A: number[][]): number[][] {
@@ -70,5 +69,25 @@ export class Matrix {
         }
 
         return I;
+    }
+
+    static random(rows: number, cols: number, min: number, max: number): Matrix {
+        const data: number[][] = [];
+        for (let i = 0; i < rows; i++) {
+            const row: number[] = [];
+            for (let j = 0; j < cols; j++) {
+                row.push(Math.random() * (max - min) + min);
+            }
+            data.push(row);
+        }
+        return new Matrix(data);
+    }
+
+    static fromArray(array: number[][]): Matrix {
+        return new Matrix(array);
+    }
+
+    toArray(): number[][] {
+        return this.data;
     }
 }

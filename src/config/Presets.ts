@@ -14,7 +14,9 @@ export const EnglishCharPreset: ExtendedELMConfig = {
     maxLen: 15,
     activation: 'relu',
     charSet: 'abcdefghijklmnopqrstuvwxyz',
-    useTokenizer: false
+    useTokenizer: false,
+    log: {
+    }
 };
 
 export const EnglishTokenPreset: ExtendedELMConfig = {
@@ -24,7 +26,9 @@ export const EnglishTokenPreset: ExtendedELMConfig = {
     activation: 'relu',
     charSet: 'abcdefghijklmnopqrstuvwxyz',
     useTokenizer: true,
-    tokenizerDelimiter: /[\s,.;!?()\[\]{}"']+/
+    tokenizerDelimiter: /[\s,.;!?()\[\]{}"']+/,
+    log: {
+    }
 };
 
 export const RussianCharPreset: ExtendedELMConfig = {
@@ -33,7 +37,9 @@ export const RussianCharPreset: ExtendedELMConfig = {
     maxLen: 20,
     activation: 'relu',
     charSet: 'абвгдеёжзийклмнопрстуфхцчшщъыьэюя',
-    useTokenizer: false
+    useTokenizer: false,
+    log: {
+    }
 };
 
 export const RussianTokenPreset: ExtendedELMConfig = {
@@ -43,7 +49,9 @@ export const RussianTokenPreset: ExtendedELMConfig = {
     activation: 'relu',
     charSet: 'абвгдеёжзийклмнопрстуфхцчшщъыьэюя',
     useTokenizer: true,
-    tokenizerDelimiter: /[\s,.;!?()\[\]{}"']+/
+    tokenizerDelimiter: /[\s,.;!?()\[\]{}"']+/,
+    log: {
+    }
 };
 
 export const EmojiCharPreset: ExtendedELMConfig = {
@@ -52,7 +60,9 @@ export const EmojiCharPreset: ExtendedELMConfig = {
     maxLen: 10,
     activation: 'relu',
     charSet: '😀😁😂🤣😃😄😅😆😉😊😋😎😍😘🥰😗😙😚🙂🤗🤩',
-    useTokenizer: false
+    useTokenizer: false,
+    log: {
+    }
 };
 
 export const EmojiHybridPreset: ExtendedELMConfig = {
@@ -62,5 +72,7 @@ export const EmojiHybridPreset: ExtendedELMConfig = {
     activation: 'relu',
     charSet: 'abcdefghijklmnopqrstuvwxyz😀😁😂🤣😃😄😅😆😉😊',
     useTokenizer: true,
-    tokenizerDelimiter: /[\s,.;!?()\[\]{}"']+/
+    tokenizerDelimiter: /[\s,.;!?()\[\]{}"']+/,
+    log: {
+    }
 };

@@ -6,7 +6,7 @@ import { EnglishTokenPreset } from '../config/Presets';
 import { Matrix } from '../core/Matrix'
 import { Activations } from '../core/Activations'
 
-interface TrainPair {
+export interface TrainPair {
     input: string;
     label: string;
 }

@@ -1,5 +1,5 @@
 // @ts-ignore
-const { AutoComplete, EncoderELM, CharacterLangEncoderELM, FeatureCombinerELM, RefinerELM, ConfidenceClassifierELM, LanguageClassifier } = window.NeuroLeaf;
+const { AutoComplete, EncoderELM, CharacterLangEncoderELM, FeatureCombinerELM, RefinerELM, ConfidenceClassifierELM, LanguageClassifier } = window.astermind;
 
 window.addEventListener('DOMContentLoaded', () => {
     const input = document.getElementById('userInput');

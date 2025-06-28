@@ -1,16 +1,16 @@
 {
-  "name": "neuroleaf",
+  "name": "astermind",
   "version": "1.0.0",
   "description": "This is a javascript ELM library",
-  "main": "dist/neuroleaf.umd.js",
-  "module": "dist/neuroleaf.esm.js",
+  "main": "dist/astermind.umd.js",
+  "module": "dist/astermind.esm.js",
   "types": "dist/index.d.ts",
   "directories": {
     "example": "examples"
   },
   "scripts": {
     "build": "rollup -c",
-    "postbuild": "cp dist/neuroleaf.umd.js public/neuroleaf.umd.js",
+    "postbuild": "cp dist/astermind.umd.js public/astermind.umd.js",
     "watch": "rollup -c -w",
     "clean": "rm -rf dist",
     "dev": "vite",
@@ -25,15 +25,15 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/infiniteCrank/NeuroLeaf.git"
+    "url": "git+https://github.com/infiniteCrank/astermind.git"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "bugs": {
-    "url": "https://github.com/infiniteCrank/NeuroLeaf/issues"
+    "url": "https://github.com/infiniteCrank/astermind/issues"
   },
-  "homepage": "https://github.com/infiniteCrank/NeuroLeaf#readme",
+  "homepage": "https://github.com/infiniteCrank/astermind#readme",
   "devDependencies": {
     "@types/node": "^24.0.3",
     "eslint": "^9.29.0",

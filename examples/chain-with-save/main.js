@@ -7,7 +7,7 @@ const {
     RefinerELM,
     ConfidenceClassifierELM,
     LanguageClassifier
-} = window.NeuroLeaf;
+} = window.astermind;
 
 async function tryLoadOrTrain(model, key, trainFn, evalFn = () => ({ passed: true, metrics: {} })) {
     let trained = false;

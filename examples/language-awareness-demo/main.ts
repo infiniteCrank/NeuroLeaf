@@ -1,5 +1,5 @@
 // @ts-ignore
-const { LanguageClassifier } = window.NeuroLeaf;
+const { LanguageClassifier } = window.astermind;
 
 const input = document.getElementById('langInput') as HTMLInputElement;
 const fill = document.getElementById('langFill') as HTMLDivElement;

@@ -8,7 +8,7 @@ const {
     RefinerELM,
     ConfidenceClassifierELM,
     LanguageClassifier
-} = window.NeuroLeaf;
+} = window.astermind;
 
 function tryLoadOrTrain(model, key, trainFn, evalFn = () => true) {
     const saved = localStorage.getItem(key);

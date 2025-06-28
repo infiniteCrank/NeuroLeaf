@@ -6,9 +6,20 @@ import { PredictResult } from '../core/ELM';
 
 export class IntentClassifier {
     private model: ELM;
+    private config: ELMConfig;
 
     constructor(config: ELMConfig) {
+        this.config = {
+            ...config,
+            log: {
+                modelName: "IntentClassifier",
+                verbose: config.log.verbose
+            },
+        };
         this.model = new ELM(config);
+
+        if (config.metrics) this.model.metrics = config.metrics;
+        if (config.exportFileName) this.model.config.exportFileName = config.exportFileName;
     }
 
     public train(textLabelPairs: { text: string, label: string }[], augmentationOptions?: {
@@ -17,8 +28,7 @@ export class IntentClassifier {
         includeNoise?: boolean;
     }): void {
         const labelSet = Array.from(new Set(textLabelPairs.map(p => p.label)));
-        const newConfig = { ...this.model, categories: labelSet };
-
+        this.model.setCategories(labelSet);
         this.model.train(augmentationOptions);
     }
 
@@ -33,5 +43,12 @@ export class IntentClassifier {
     private oneHot(n: number, index: number): number[] {
         return Array.from({ length: n }, (_, i) => (i === index ? 1 : 0));
     }
-}
 
+    public loadModelFromJSON(json: string): void {
+        this.model.loadModelFromJSON(json);
+    }
+
+    public saveModelAsJSONFile(filename?: string): void {
+        this.model.saveModelAsJSONFile(filename);
+    }
+}

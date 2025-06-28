@@ -7,7 +7,7 @@ import { Activations } from '../core/Activations';
  * EncoderELM: Uses an ELM to convert strings into dense feature vectors.
  */
 export class EncoderELM {
-    private elm: ELM;
+    public elm: ELM;
     private config: ELMConfig;
 
     constructor(config: ELMConfig) {
@@ -21,12 +21,18 @@ export class EncoderELM {
         this.config = {
             ...config,
             categories: [],
-            useTokenizer: true
+            useTokenizer: true,
+            log: {
+                modelName: "EncoderELM",
+                verbose: config.log.verbose
+            },
         };
 
         this.elm = new ELM(this.config);
-    }
 
+        if (config.metrics) this.elm.metrics = config.metrics;
+        if (config.exportFileName) this.elm.config.exportFileName = config.exportFileName;
+    }
 
     /**
      * Custom training method for string → vector encoding.
@@ -75,4 +81,11 @@ export class EncoderELM {
         return Matrix.multiply(H, beta)[0];
     }
 
+    public loadModelFromJSON(json: string): void {
+        this.elm.loadModelFromJSON(json);
+    }
+
+    public saveModelAsJSONFile(filename?: string): void {
+        this.elm.saveModelAsJSONFile(filename);
+    }
 }

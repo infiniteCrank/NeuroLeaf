@@ -1,5 +1,5 @@
 // @ts-ignore
-const { LanguageClassifier, AutoComplete, IO } = window.NeuroLeaf;
+const { LanguageClassifier, AutoComplete, IO } = window.astermind;
 
 window.addEventListener('DOMContentLoaded', () => {
     const input = document.getElementById('userInput');

@@ -1,7 +1,7 @@
 (function (global, factory) {
     typeof exports === 'object' && typeof module !== 'undefined' ? factory(exports) :
     typeof define === 'function' && define.amd ? define(['exports'], factory) :
-    (global = typeof globalThis !== 'undefined' ? globalThis : global || self, factory(global.NeuroLeaf = {}));
+    (global = typeof globalThis !== 'undefined' ? globalThis : global || self, factory(global.astermind = {}));
 })(this, (function (exports) { 'use strict';
 
     // Matrix.ts - Matrix operations for ELM without external dependencies
@@ -102,10 +102,12 @@
 
     // ELMConfig.ts - Configuration interface and defaults for ELM-based models
     const defaultConfig = {
-        categories: [],
-        hiddenUnits: 120,
-        maxLen: 15,
-        activation: 'relu'
+        hiddenUnits: 50,
+        maxLen: 30,
+        activation: 'relu',
+        charSet: 'abcdefghijklmnopqrstuvwxyz',
+        useTokenizer: false,
+        tokenizerDelimiter: /\s+/,
     };
 
     class Tokenizer {
@@ -261,7 +263,7 @@
     // ELM.ts - Core ELM logic with TypeScript types
     class ELM {
         constructor(config) {
-            var _a, _b;
+            var _a, _b, _c, _d, _e, _f, _g, _h;
             const cfg = Object.assign(Object.assign({}, defaultConfig), config);
             this.categories = cfg.categories;
             this.hiddenUnits = cfg.hiddenUnits;
@@ -270,6 +272,11 @@
             this.charSet = (_a = cfg.charSet) !== null && _a !== void 0 ? _a : 'abcdefghijklmnopqrstuvwxyz';
             this.useTokenizer = (_b = cfg.useTokenizer) !== null && _b !== void 0 ? _b : false;
             this.tokenizerDelimiter = cfg.tokenizerDelimiter;
+            this.config = cfg;
+            this.metrics = this.config.metrics;
+            this.verbose = (_d = (_c = cfg.log) === null || _c === void 0 ? void 0 : _c.verbose) !== null && _d !== void 0 ? _d : true;
+            this.modelName = (_f = (_e = cfg.log) === null || _e === void 0 ? void 0 : _e.modelName) !== null && _f !== void 0 ? _f : 'Unnamed ELM Model';
+            this.logToFile = (_h = (_g = cfg.log) === null || _g === void 0 ? void 0 : _g.toFile) !== null && _h !== void 0 ? _h : false;
             this.encoder = new UniversalEncoder({
                 charSet: this.charSet,
                 maxLen: this.maxLen,
@@ -295,6 +302,86 @@
         setCategories(categories) {
             this.categories = categories;
         }
+        loadModelFromJSON(json) {
+            try {
+                const parsed = JSON.parse(json);
+                this.model = parsed;
+                this.savedModelJSON = json;
+                if (this.verbose)
+                    console.log(`✅ ${this.modelName} Model loaded from JSON`);
+            }
+            catch (e) {
+                console.error(`❌ Failed to load ${this.modelName} model from JSON:`, e);
+            }
+        }
+        trainFromData(X, Y) {
+            const W = this.randomMatrix(this.hiddenUnits, X[0].length);
+            const b = this.randomMatrix(this.hiddenUnits, 1);
+            const tempH = Matrix.multiply(X, Matrix.transpose(W));
+            const activationFn = Activations.get(this.activation);
+            const H = Activations.apply(tempH.map(row => row.map((val, j) => val + b[j][0])), activationFn);
+            const H_pinv = this.pseudoInverse(H);
+            const beta = Matrix.multiply(H_pinv, Y);
+            this.model = { W, b, beta };
+            const predictions = Matrix.multiply(H, beta);
+            const results = {};
+            let allPassed = true;
+            if (this.metrics) {
+                const rmse = this.calculateRMSE(Y, predictions);
+                const mae = this.calculateMAE(Y, predictions);
+                const acc = this.calculateAccuracy(Y, predictions);
+                const f1 = this.calculateF1Score(Y, predictions);
+                const ce = this.calculateCrossEntropy(Y, predictions);
+                const r2 = this.calculateR2Score(Y, predictions);
+                if (this.metrics.rmse !== undefined) {
+                    results.rmse = rmse;
+                    if (rmse > this.metrics.rmse)
+                        allPassed = false;
+                }
+                if (this.metrics.mae !== undefined) {
+                    results.mae = mae;
+                    if (mae > this.metrics.mae)
+                        allPassed = false;
+                }
+                if (this.metrics.accuracy !== undefined) {
+                    results.accuracy = acc;
+                    if (acc < this.metrics.accuracy)
+                        allPassed = false;
+                }
+                if (this.metrics.f1 !== undefined) {
+                    results.f1 = f1;
+                    if (f1 < this.metrics.f1)
+                        allPassed = false;
+                }
+                if (this.metrics.crossEntropy !== undefined) {
+                    results.crossEntropy = ce;
+                    if (ce > this.metrics.crossEntropy)
+                        allPassed = false;
+                }
+                if (this.metrics.r2 !== undefined) {
+                    results.r2 = r2;
+                    if (r2 < this.metrics.r2)
+                        allPassed = false;
+                }
+                if (this.verbose)
+                    this.logMetrics(results);
+                if (allPassed) {
+                    this.savedModelJSON = JSON.stringify(this.model);
+                    if (this.verbose)
+                        console.log("✅ Model passed thresholds and was saved to JSON.");
+                    if (this.config.exportFileName) {
+                        this.saveModelAsJSONFile(this.config.exportFileName);
+                    }
+                }
+                else {
+                    if (this.verbose)
+                        console.log("❌ Model not saved: One or more thresholds not met.");
+                }
+            }
+            else {
+                throw new Error("No metrics defined in config. Please specify at least one metric to evaluate.");
+            }
+        }
         train(augmentationOptions) {
             const X = [], Y = [];
             this.categories.forEach((cat, i) => {
@@ -313,6 +400,115 @@
             const H_pinv = this.pseudoInverse(H);
             const beta = Matrix.multiply(H_pinv, Y);
             this.model = { W, b, beta };
+            const predictions = Matrix.multiply(H, beta);
+            const results = {};
+            let allPassed = true;
+            if (this.metrics) {
+                const rmse = this.calculateRMSE(Y, predictions);
+                const mae = this.calculateMAE(Y, predictions);
+                const acc = this.calculateAccuracy(Y, predictions);
+                const f1 = this.calculateF1Score(Y, predictions);
+                const ce = this.calculateCrossEntropy(Y, predictions);
+                const r2 = this.calculateR2Score(Y, predictions);
+                if (this.metrics.rmse !== undefined) {
+                    results.rmse = rmse;
+                    if (rmse > this.metrics.rmse)
+                        allPassed = false;
+                }
+                if (this.metrics.mae !== undefined) {
+                    results.mae = mae;
+                    if (mae > this.metrics.mae)
+                        allPassed = false;
+                }
+                if (this.metrics.accuracy !== undefined) {
+                    results.accuracy = acc;
+                    if (acc < this.metrics.accuracy)
+                        allPassed = false;
+                }
+                if (this.metrics.f1 !== undefined) {
+                    results.f1 = f1;
+                    if (f1 < this.metrics.f1)
+                        allPassed = false;
+                }
+                if (this.metrics.crossEntropy !== undefined) {
+                    results.crossEntropy = ce;
+                    if (ce > this.metrics.crossEntropy)
+                        allPassed = false;
+                }
+                if (this.metrics.r2 !== undefined) {
+                    results.r2 = r2;
+                    if (r2 < this.metrics.r2)
+                        allPassed = false;
+                }
+                if (this.verbose) {
+                    this.logMetrics(results);
+                }
+                if (allPassed) {
+                    this.savedModelJSON = JSON.stringify(this.model);
+                    if (this.verbose)
+                        console.log("✅ Model passed thresholds and was saved to JSON.");
+                    if (this.config.exportFileName) {
+                        this.saveModelAsJSONFile(this.config.exportFileName);
+                    }
+                }
+                else {
+                    if (this.verbose)
+                        console.log("❌ Model not saved: One or more thresholds not met.");
+                }
+            }
+            else {
+                throw new Error("No metrics defined in config. Please specify at least one metric to evaluate.");
+            }
+        }
+        logMetrics(results) {
+            var _a, _b, _c, _d, _e, _f;
+            const logLines = [`📋 ${this.modelName} — Metrics Summary:`];
+            const push = (label, value, threshold, cmp) => {
+                if (threshold !== undefined)
+                    logLines.push(`  ${label}: ${value.toFixed(4)} (threshold: ${cmp} ${threshold})`);
+            };
+            push('RMSE', results.rmse, (_a = this.metrics) === null || _a === void 0 ? void 0 : _a.rmse, '<=');
+            push('MAE', results.mae, (_b = this.metrics) === null || _b === void 0 ? void 0 : _b.mae, '<=');
+            push('Accuracy', results.accuracy, (_c = this.metrics) === null || _c === void 0 ? void 0 : _c.accuracy, '>=');
+            push('F1 Score', results.f1, (_d = this.metrics) === null || _d === void 0 ? void 0 : _d.f1, '>=');
+            push('Cross-Entropy', results.crossEntropy, (_e = this.metrics) === null || _e === void 0 ? void 0 : _e.crossEntropy, '<=');
+            push('R² Score', results.r2, (_f = this.metrics) === null || _f === void 0 ? void 0 : _f.r2, '>=');
+            if (this.verbose)
+                console.log('\n' + logLines.join('\n'));
+            if (this.logToFile) {
+                const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+                const logFile = this.config.logFileName || `${this.modelName.toLowerCase().replace(/\s+/g, '_')}_metrics_${timestamp}.txt`;
+                const blob = new Blob([logLines.join('\n')], { type: 'text/plain' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = logFile;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            }
+        }
+        saveModelAsJSONFile(filename) {
+            if (!this.savedModelJSON) {
+                if (this.verbose)
+                    console.warn("No model saved — did not meet metric thresholds.");
+                return;
+            }
+            const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+            const fallback = `${this.modelName.toLowerCase().replace(/\s+/g, '_')}_${timestamp}.json`;
+            const finalName = filename || this.config.exportFileName || fallback;
+            const blob = new Blob([this.savedModelJSON], { type: "application/json" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = finalName;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            if (this.verbose)
+                console.log(`📦 Model exported as ${finalName}`);
         }
         predict(text, topK = 5) {
             if (!this.model)
@@ -343,6 +539,74 @@
                     .sort((a, b) => b.prob - a.prob)
                     .slice(0, topK);
             });
+        }
+        calculateRMSE(Y, P) {
+            const N = Y.length;
+            let sum = 0;
+            for (let i = 0; i < N; i++) {
+                for (let j = 0; j < Y[0].length; j++) {
+                    const diff = Y[i][j] - P[i][j];
+                    sum += diff * diff;
+                }
+            }
+            return Math.sqrt(sum / (N * Y[0].length));
+        }
+        calculateMAE(Y, P) {
+            const N = Y.length;
+            let sum = 0;
+            for (let i = 0; i < N; i++) {
+                for (let j = 0; j < Y[0].length; j++) {
+                    sum += Math.abs(Y[i][j] - P[i][j]);
+                }
+            }
+            return sum / (N * Y[0].length);
+        }
+        calculateAccuracy(Y, P) {
+            let correct = 0;
+            for (let i = 0; i < Y.length; i++) {
+                const yMax = Y[i].indexOf(Math.max(...Y[i]));
+                const pMax = P[i].indexOf(Math.max(...P[i]));
+                if (yMax === pMax)
+                    correct++;
+            }
+            return correct / Y.length;
+        }
+        calculateF1Score(Y, P) {
+            let tp = 0, fp = 0, fn = 0;
+            for (let i = 0; i < Y.length; i++) {
+                const yIdx = Y[i].indexOf(1);
+                const pIdx = P[i].indexOf(Math.max(...P[i]));
+                if (yIdx === pIdx)
+                    tp++;
+                else {
+                    fp++;
+                    fn++;
+                }
+            }
+            const precision = tp / (tp + fp || 1);
+            const recall = tp / (tp + fn || 1);
+            return 2 * (precision * recall) / (precision + recall || 1);
+        }
+        calculateCrossEntropy(Y, P) {
+            let loss = 0;
+            for (let i = 0; i < Y.length; i++) {
+                for (let j = 0; j < Y[0].length; j++) {
+                    const pred = Math.min(Math.max(P[i][j], 1e-15), 1 - 1e-15);
+                    loss += -Y[i][j] * Math.log(pred);
+                }
+            }
+            return loss / Y.length;
+        }
+        calculateR2Score(Y, P) {
+            const Y_mean = Y[0].map((_, j) => Y.reduce((sum, y) => sum + y[j], 0) / Y.length);
+            let ssRes = 0, ssTot = 0;
+            for (let i = 0; i < Y.length; i++) {
+                for (let j = 0; j < Y[0].length; j++) {
+                    ssRes += Math.pow(Y[i][j] - P[i][j], 2);
+                    ssTot += Math.pow(Y[i][j] - Y_mean[j], 2);
+                }
+            }
+            return 1 - ssRes / ssTot;
         }
     }
 
@@ -375,30 +639,105 @@
         activation: 'relu',
         charSet: 'abcdefghijklmnopqrstuvwxyz',
         useTokenizer: true,
-        tokenizerDelimiter: /[\s,.;!?()\[\]{}"']+/
+        tokenizerDelimiter: /[\s,.;!?()\[\]{}"']+/,
+        log: {}
     };
 
-    // AutoComplete.ts - High-level autocomplete controller using ELM
+    // ✅ AutoComplete.ts patched to support (input, label) training and evaluation
     class AutoComplete {
-        constructor(categories, options) {
-            this.model = new ELM(Object.assign(Object.assign({}, EnglishTokenPreset), { categories }));
-            // Train the model, safely handling optional augmentationOptions
-            this.model.train(options === null || options === void 0 ? void 0 : options.augmentationOptions);
+        constructor(pairs, options) {
+            var _a;
+            this.trainPairs = pairs;
+            this.activation = (_a = options.activation) !== null && _a !== void 0 ? _a : 'relu';
+            const categories = Array.from(new Set(pairs.map(p => p.label)));
+            this.elm = new ELM(Object.assign(Object.assign({}, EnglishTokenPreset), { categories, activation: this.activation, metrics: options.metrics, log: {
+                    modelName: "AutoComplete",
+                    verbose: options.verbose
+                }, exportFileName: options.exportFileName }));
             bindAutocompleteUI({
-                model: this.model,
+                model: this.elm,
                 inputElement: options.inputElement,
                 outputElement: options.outputElement,
                 topK: options.topK
             });
         }
+        train() {
+            const X = [];
+            const Y = [];
+            for (const { input, label } of this.trainPairs) {
+                const vec = this.elm.encoder.normalize(this.elm.encoder.encode(input));
+                const labelIndex = this.elm.categories.indexOf(label);
+                if (labelIndex === -1)
+                    continue;
+                X.push(vec);
+                Y.push(this.elm.oneHot(this.elm.categories.length, labelIndex));
+            }
+            this.elm.trainFromData(X, Y);
+        }
         predict(input, topN = 1) {
-            return this.model.predict(input).slice(0, topN).map(p => ({
+            return this.elm.predict(input, topN).map(p => ({
                 completion: p.label,
                 prob: p.prob
             }));
         }
         getModel() {
-            return this.model;
+            return this.elm;
+        }
+        loadModelFromJSON(json) {
+            this.elm.loadModelFromJSON(json);
+        }
+        saveModelAsJSONFile(filename) {
+            this.elm.saveModelAsJSONFile(filename);
+        }
+        top1Accuracy(pairs) {
+            var _a;
+            let correct = 0;
+            for (const { input, label } of pairs) {
+                const [pred] = this.predict(input, 1);
+                if (((_a = pred === null || pred === void 0 ? void 0 : pred.completion) === null || _a === void 0 ? void 0 : _a.toLowerCase().trim()) === label.toLowerCase().trim()) {
+                    correct++;
+                }
+            }
+            return correct / pairs.length;
+        }
+        crossEntropy(pairs) {
+            var _a;
+            let totalLoss = 0;
+            for (const { input, label } of pairs) {
+                const preds = this.predict(input, 5);
+                const match = preds.find(p => p.completion.toLowerCase().trim() === label.toLowerCase().trim());
+                const prob = (_a = match === null || match === void 0 ? void 0 : match.prob) !== null && _a !== void 0 ? _a : 1e-6;
+                totalLoss += -Math.log(prob); // ⬅ switched from log2 to natural log
+            }
+            return totalLoss / pairs.length;
+        }
+        internalCrossEntropy(verbose = false) {
+            const { model, encoder, categories } = this.elm;
+            if (!model) {
+                if (verbose)
+                    console.warn("⚠️ Cannot compute internal cross-entropy: model not trained.");
+                return Infinity;
+            }
+            const X = [];
+            const Y = [];
+            for (const { input, label } of this.trainPairs) {
+                const vec = encoder.normalize(encoder.encode(input));
+                const labelIdx = categories.indexOf(label);
+                if (labelIdx === -1)
+                    continue;
+                X.push(vec);
+                Y.push(this.elm.oneHot(categories.length, labelIdx));
+            }
+            const { W, b, beta } = model;
+            const tempH = Matrix.multiply(X, Matrix.transpose(W));
+            const activationFn = Activations.get(this.activation);
+            const H = Activations.apply(tempH.map(row => row.map((val, j) => val + b[j][0])), activationFn);
+            const preds = Matrix.multiply(H, beta);
+            const ce = this.elm.calculateCrossEntropy(Y, preds);
+            if (verbose) {
+                console.log(`📏 Internal Cross-Entropy (full model eval): ${ce.toFixed(4)}`);
+            }
+            return ce;
         }
     }
 
@@ -413,8 +752,15 @@
             if (!config.activation) {
                 throw new Error('EncoderELM requires config.activation to be defined');
             }
-            this.config = Object.assign(Object.assign({}, config), { categories: [], useTokenizer: true });
+            this.config = Object.assign(Object.assign({}, config), { categories: [], useTokenizer: true, log: {
+                    modelName: "EncoderELM",
+                    verbose: config.log.verbose
+                } });
             this.elm = new ELM(this.config);
+            if (config.metrics)
+                this.elm.metrics = config.metrics;
+            if (config.exportFileName)
+                this.elm.config.exportFileName = config.exportFileName;
         }
         /**
          * Custom training method for string → vector encoding.
@@ -448,16 +794,30 @@
             const H = Activations.apply(tempH.map(row => row.map((val, j) => val + b[j][0])), activationFn);
             return Matrix.multiply(H, beta)[0];
         }
+        loadModelFromJSON(json) {
+            this.elm.loadModelFromJSON(json);
+        }
+        saveModelAsJSONFile(filename) {
+            this.elm.saveModelAsJSONFile(filename);
+        }
     }
 
     // intentClassifier.ts - ELM-based intent classification engine
     class IntentClassifier {
         constructor(config) {
+            this.config = Object.assign(Object.assign({}, config), { log: {
+                    modelName: "IntentClassifier",
+                    verbose: config.log.verbose
+                } });
             this.model = new ELM(config);
+            if (config.metrics)
+                this.model.metrics = config.metrics;
+            if (config.exportFileName)
+                this.model.config.exportFileName = config.exportFileName;
         }
         train(textLabelPairs, augmentationOptions) {
             const labelSet = Array.from(new Set(textLabelPairs.map(p => p.label)));
-            Object.assign(Object.assign({}, this.model), { categories: labelSet });
+            this.model.setCategories(labelSet);
             this.model.train(augmentationOptions);
         }
         predict(text, topK = 1, threshold = 0) {
@@ -468,6 +828,12 @@
         }
         oneHot(n, index) {
             return Array.from({ length: n }, (_, i) => (i === index ? 1 : 0));
+        }
+        loadModelFromJSON(json) {
+            this.model.loadModelFromJSON(json);
+        }
+        saveModelAsJSONFile(filename) {
+            this.model.saveModelAsJSONFile(filename);
         }
     }
 
@@ -592,8 +958,15 @@
     class LanguageClassifier {
         constructor(config) {
             this.trainSamples = {};
-            this.config = config;
+            this.config = Object.assign(Object.assign({}, config), { log: {
+                    modelName: "IntentClassifier",
+                    verbose: config.log.verbose
+                } });
             this.elm = new ELM(config);
+            if (config.metrics)
+                this.elm.metrics = config.metrics;
+            if (config.exportFileName)
+                this.elm.config.exportFileName = config.exportFileName;
         }
         loadTrainingData(raw, format = 'json') {
             switch (format) {
@@ -656,6 +1029,12 @@
                 .sort((a, b) => b.prob - a.prob)
                 .slice(0, topK);
         }
+        loadModelFromJSON(json) {
+            this.elm.loadModelFromJSON(json);
+        }
+        saveModelAsJSONFile(filename) {
+            this.elm.saveModelAsJSONFile(filename);
+        }
     }
 
     class FeatureCombinerELM {
@@ -666,9 +1045,15 @@
             if (!config.activation) {
                 throw new Error('FeatureCombinerELM requires activation');
             }
-            this.config = Object.assign(Object.assign({}, config), { categories: [], useTokenizer: false // this ELM takes numeric vectors
-             });
+            this.config = Object.assign(Object.assign({}, config), { categories: [], useTokenizer: false, log: {
+                    modelName: "FeatureCombinerELM",
+                    verbose: config.log.verbose
+                } });
             this.elm = new ELM(this.config);
+            if (config.metrics)
+                this.elm.metrics = config.metrics;
+            if (config.exportFileName)
+                this.elm.config.exportFileName = config.exportFileName;
         }
         /**
          * Combines encoder vector and metadata into one input vector
@@ -704,6 +1089,12 @@
             const [results] = this.elm.predictFromVector(input, topK);
             return results;
         }
+        loadModelFromJSON(json) {
+            this.elm.loadModelFromJSON(json);
+        }
+        saveModelAsJSONFile(filename) {
+            this.elm.saveModelAsJSONFile(filename);
+        }
     }
 
     /**
@@ -715,7 +1106,14 @@
         constructor(config) {
             this.categories = config.categories || ['English', 'French', 'Spanish'];
             this.modelWeights = [];
-            this.elm = new ELM(Object.assign(Object.assign({}, config), { useTokenizer: false, categories: this.categories }));
+            this.elm = new ELM(Object.assign(Object.assign({}, config), { useTokenizer: false, categories: this.categories, log: {
+                    modelName: "IntentClassifier",
+                    verbose: config.log.verbose
+                } }));
+            if (config.metrics)
+                this.elm.metrics = config.metrics;
+            if (config.exportFileName)
+                this.elm.config.exportFileName = config.exportFileName;
         }
         setModelWeights(weights) {
             this.modelWeights = weights;
@@ -758,7 +1156,6 @@
                     }
                 }
             }
-            // Automatically calibrate weights if not set
             if (!this.modelWeights || this.modelWeights.length !== numModels) {
                 this.calibrateWeights(predictionLists, trueLabels);
             }
@@ -775,7 +1172,7 @@
                     inputRow = inputRow.concat(this.oneHot(label).map(x => x * weight));
                     if (confidenceLists) {
                         const conf = confidenceLists[m][i];
-                        const normalizedConf = Math.min(1, Math.max(0, conf)); // Clamp to [0,1]
+                        const normalizedConf = Math.min(1, Math.max(0, conf));
                         inputRow.push(normalizedConf * weight);
                     }
                 }
@@ -808,6 +1205,12 @@
             }
             return this.categories.map((_, i) => (i === index ? 1 : 0));
         }
+        loadModelFromJSON(json) {
+            this.elm.loadModelFromJSON(json);
+        }
+        saveModelAsJSONFile(filename) {
+            this.elm.saveModelAsJSONFile(filename);
+        }
     }
 
     /**
@@ -818,7 +1221,15 @@
     class ConfidenceClassifierELM {
         constructor(config) {
             this.config = config;
-            this.elm = new ELM(Object.assign(Object.assign({}, config), { categories: ['low', 'high'], useTokenizer: false }));
+            this.elm = new ELM(Object.assign(Object.assign({}, config), { categories: ['low', 'high'], useTokenizer: false, log: {
+                    modelName: "ConfidenceClassifierELM",
+                    verbose: config.log.verbose
+                } }));
+            // Forward optional ELM config extensions
+            if (config.metrics)
+                this.elm.metrics = config.metrics;
+            if (config.exportFileName)
+                this.elm.config.exportFileName = config.exportFileName;
         }
         train(vectors, metas, labels) {
             vectors.map((vec, i) => FeatureCombinerELM.combineFeatures(vec, metas[i]));
@@ -826,7 +1237,6 @@
                 input: FeatureCombinerELM.combineFeatures(vec, metas[i]),
                 label: labels[i]
             }));
-            // Explicitly cast to match expected training format for ELM
             this.elm.train(examples);
         }
         predict(vec, meta) {
@@ -834,12 +1244,25 @@
             const inputStr = JSON.stringify(input);
             return this.elm.predict(inputStr, 1);
         }
+        loadModelFromJSON(json) {
+            this.elm.loadModelFromJSON(json);
+        }
+        saveModelAsJSONFile(filename) {
+            this.elm.saveModelAsJSONFile(filename);
+        }
     }
 
     class RefinerELM {
         constructor(config) {
-            this.config = Object.assign(Object.assign({}, config), { useTokenizer: false, categories: [] });
+            this.config = Object.assign(Object.assign({}, config), { useTokenizer: false, categories: [], log: {
+                    modelName: "IntentClassifier",
+                    verbose: config.log.verbose
+                } });
             this.elm = new ELM(this.config);
+            if (config.metrics)
+                this.elm.metrics = config.metrics;
+            if (config.exportFileName)
+                this.elm.config.exportFileName = config.exportFileName;
         }
         train(inputs, labels) {
             const categories = [...new Set(labels)];
@@ -870,6 +1293,12 @@
                 .map((p, i) => ({ label: this.elm.categories[i], prob: p }))
                 .sort((a, b) => b.prob - a.prob);
         }
+        loadModelFromJSON(json) {
+            this.elm.loadModelFromJSON(json);
+        }
+        saveModelAsJSONFile(filename) {
+            this.elm.saveModelAsJSONFile(filename);
+        }
     }
 
     class CharacterLangEncoderELM {
@@ -877,8 +1306,16 @@
             if (!config.hiddenUnits || !config.activation) {
                 throw new Error("CharacterLangEncoderELM requires defined hiddenUnits and activation");
             }
-            this.config = Object.assign(Object.assign({}, config), { useTokenizer: true });
+            this.config = Object.assign(Object.assign({}, config), { log: {
+                    modelName: "CharacterLangEncoderELM",
+                    verbose: config.log.verbose
+                }, useTokenizer: true });
             this.elm = new ELM(this.config);
+            // Forward ELM-specific options
+            if (config.metrics)
+                this.elm.metrics = config.metrics;
+            if (config.exportFileName)
+                this.elm.config.exportFileName = config.exportFileName;
         }
         train(inputStrings, labels) {
             const categories = [...new Set(labels)];
@@ -900,6 +1337,12 @@
             const H = Activations.apply(tempH.map(row => row.map((val, j) => val + b[j][0])), activationFn);
             // dense feature vector
             return Matrix.multiply(H, beta)[0];
+        }
+        loadModelFromJSON(json) {
+            this.elm.loadModelFromJSON(json);
+        }
+        saveModelAsJSONFile(filename) {
+            this.elm.saveModelAsJSONFile(filename);
         }
     }
 
@@ -923,4 +1366,4 @@
     exports.defaultConfig = defaultConfig;
 
 }));
-//# sourceMappingURL=neuroleaf.umd.js.map
+//# sourceMappingURL=astermind.umd.js.map

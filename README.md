@@ -1,4 +1,4 @@
-# NeuroLeaf
+# astermind
 This is a javascript ELM library 
 
 ### ⏳ Progressive Learning: Add new samples dynamically without retraining from scratch.

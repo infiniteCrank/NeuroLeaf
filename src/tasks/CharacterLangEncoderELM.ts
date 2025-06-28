@@ -14,16 +14,23 @@ export class CharacterLangEncoderELM {
 
         this.config = {
             ...config,
-            useTokenizer: true,
+            log: {
+                modelName: "CharacterLangEncoderELM",
+                verbose: config.log.verbose
+            },
+            useTokenizer: true
         };
 
         this.elm = new ELM(this.config);
+
+        // Forward ELM-specific options
+        if (config.metrics) this.elm.metrics = config.metrics;
+        if (config.exportFileName) this.elm.config.exportFileName = config.exportFileName;
     }
 
     train(inputStrings: string[], labels: string[]) {
         const categories = [...new Set(labels)];
         this.elm.setCategories(categories);
-
         this.elm.train(); // assumes encoder + categories are set
     }
 
@@ -48,4 +55,12 @@ export class CharacterLangEncoderELM {
         // dense feature vector
         return Matrix.multiply(H, beta)[0];
     }
-}
+
+    public loadModelFromJSON(json: string): void {
+        this.elm.loadModelFromJSON(json);
+    }
+
+    public saveModelAsJSONFile(filename?: string): void {
+        this.elm.saveModelAsJSONFile(filename);
+    }
+} 

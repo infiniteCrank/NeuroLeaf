@@ -11,10 +11,17 @@ export class RefinerELM {
         this.config = {
             ...config,
             useTokenizer: false,
-            categories: []
+            categories: [],
+            log: {
+                modelName: "IntentClassifier",
+                verbose: config.log.verbose
+            },
         };
 
         this.elm = new ELM(this.config);
+
+        if (config.metrics) this.elm.metrics = config.metrics;
+        if (config.exportFileName) this.elm.config.exportFileName = config.exportFileName;
     }
 
     train(inputs: number[][], labels: string[]) {
@@ -59,4 +66,11 @@ export class RefinerELM {
             .sort((a, b) => b.prob - a.prob);
     }
 
+    public loadModelFromJSON(json: string): void {
+        this.elm.loadModelFromJSON(json);
+    }
+
+    public saveModelAsJSONFile(filename?: string): void {
+        this.elm.saveModelAsJSONFile(filename);
+    }
 }

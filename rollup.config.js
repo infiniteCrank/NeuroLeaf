@@ -11,7 +11,7 @@ module.exports = {
         {
             file: pkg.main,
             format: 'umd',
-            name: 'NeuroLeaf',
+            name: 'astermind',
             sourcemap: true,
         },
         {

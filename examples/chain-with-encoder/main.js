@@ -1,4 +1,4 @@
-const { AutoComplete, EncoderELM, LanguageClassifier } = window.NeuroLeaf;
+const { AutoComplete, EncoderELM, LanguageClassifier } = window.astermind;
 
 window.addEventListener('DOMContentLoaded', () => {
     const input = document.getElementById('userInput');

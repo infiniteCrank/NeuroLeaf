@@ -18,8 +18,15 @@ export class VotingClassifierELM {
         this.elm = new ELM({
             ...config,
             useTokenizer: false,
-            categories: this.categories
+            categories: this.categories,
+            log: {
+                modelName: "IntentClassifier",
+                verbose: config.log.verbose
+            },
         });
+
+        if (config.metrics) this.elm.metrics = config.metrics;
+        if (config.exportFileName) this.elm.config.exportFileName = config.exportFileName;
     }
 
     setModelWeights(weights: number[]): void {
@@ -76,7 +83,6 @@ export class VotingClassifierELM {
             }
         }
 
-        // Automatically calibrate weights if not set
         if (!this.modelWeights || this.modelWeights.length !== numModels) {
             this.calibrateWeights(predictionLists, trueLabels);
         }
@@ -95,7 +101,7 @@ export class VotingClassifierELM {
 
                 if (confidenceLists) {
                     const conf = confidenceLists[m][i];
-                    const normalizedConf = Math.min(1, Math.max(0, conf)); // Clamp to [0,1]
+                    const normalizedConf = Math.min(1, Math.max(0, conf));
                     inputRow.push(normalizedConf * weight);
                 }
             }
@@ -132,5 +138,13 @@ export class VotingClassifierELM {
             return new Array(this.categories.length).fill(0);
         }
         return this.categories.map((_, i) => (i === index ? 1 : 0));
+    }
+
+    public loadModelFromJSON(json: string): void {
+        this.elm.loadModelFromJSON(json);
+    }
+
+    public saveModelAsJSONFile(filename?: string): void {
+        this.elm.saveModelAsJSONFile(filename);
     }
 }

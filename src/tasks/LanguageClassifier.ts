@@ -7,10 +7,20 @@ import { IO, LabeledExample } from '../utils/IO';
 export class LanguageClassifier {
     private elm: ELM;
     private config: ELMConfig;
+    private trainSamples: Record<string, string[]> = {};
 
     constructor(config: ELMConfig) {
-        this.config = config;
+        this.config = {
+            ...config,
+            log: {
+                modelName: "IntentClassifier",
+                verbose: config.log.verbose
+            },
+        };
         this.elm = new ELM(config);
+
+        if (config.metrics) this.elm.metrics = config.metrics;
+        if (config.exportFileName) this.elm.config.exportFileName = config.exportFileName;
     }
 
     loadTrainingData(raw: string, format: 'json' | 'csv' | 'tsv' = 'json'): LabeledExample[] {
@@ -90,6 +100,11 @@ export class LanguageClassifier {
             .slice(0, topK);
     }
 
+    public loadModelFromJSON(json: string): void {
+        this.elm.loadModelFromJSON(json);
+    }
 
-    private trainSamples: Record<string, string[]> = {};
+    public saveModelAsJSONFile(filename?: string): void {
+        this.elm.saveModelAsJSONFile(filename);
+    }
 }

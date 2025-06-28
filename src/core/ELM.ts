@@ -41,6 +41,9 @@ export class ELM {
     public modelName: string;
     public logToFile: boolean;
 
+    public inputWeights: Matrix;
+    public biases: Matrix;
+
     constructor(config: ELMConfig & { charSet?: string; useTokenizer?: boolean; tokenizerDelimiter?: RegExp }) {
         const cfg = { ...defaultConfig, ...config };
         this.categories = cfg.categories;
@@ -63,6 +66,9 @@ export class ELM {
             tokenizerDelimiter: this.tokenizerDelimiter,
             mode: this.useTokenizer ? 'token' : 'char'
         });
+
+        this.inputWeights = Matrix.random(cfg.hiddenUnits, cfg.maxLen, -1, 1);
+        this.biases = Matrix.random(cfg.hiddenUnits, 1, -1, 1);
 
         this.model = null;
     }
@@ -417,5 +423,16 @@ export class ELM {
             }
         }
         return 1 - ssRes / ssTot;
+    }
+
+    computeHiddenLayer(X: number[][]): number[][] {
+        const WX = Matrix.multiply(X, Matrix.transpose(this.inputWeights.toArray()));
+        const WXb = WX.map(row => row.map((val, j) => val + this.biases.data[j][0]));
+        const activationFn = Activations.get(this.activation);
+        return WXb.map(row => row.map(activationFn));
+    }
+
+    getEmbedding(X: number[][]): number[][] {
+        return this.computeHiddenLayer(X);
     }
 }

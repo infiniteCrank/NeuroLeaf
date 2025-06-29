@@ -5,7 +5,7 @@ import { ELM } from '../src/core/ELM';
 import { ELMChain } from '../src/core/ELMChain';
 import { PCA } from 'ml-pca';
 
-// Load AG News
+// Load AG News data
 const csvFile = fs.readFileSync('../public/ag-news-classification-dataset/train.csv', 'utf8');
 const raw = parse(csvFile, { skip_empty_lines: true }) as string[][];
 
@@ -58,18 +58,7 @@ const labels = sampleRecords.map(r => r.label);
 
     const elmEmbeddings = encodedVectors.map(vec => chain.getEmbedding([vec])[0]);
 
-    // Split queries/reference
-    const splitIdx = Math.floor(sampleRecords.length * 0.2);
-
-    const queryELM = elmEmbeddings.slice(0, splitIdx);
-    const refELM = elmEmbeddings.slice(splitIdx);
-
-    const queryBERT = bertEmbeddings.slice(0, splitIdx);
-    const refBERT = bertEmbeddings.slice(splitIdx);
-
-    const queryLabels = labels.slice(0, splitIdx);
-    const refLabels = labels.slice(splitIdx);
-
+    // Evaluation helpers
     function cosineSimilarity(a: number[], b: number[]): number {
         const dot = a.reduce((sum, ai, i) => sum + ai * b[i], 0);
         const normA = Math.sqrt(a.reduce((s, ai) => s + ai * ai, 0));
@@ -102,6 +91,16 @@ const labels = sampleRecords.map(r => r.label);
             mrr: reciprocalRanks / query.length
         };
     }
+
+    // Split queries/reference
+    const splitIdx = Math.floor(sampleRecords.length * 0.2);
+
+    const queryELM = elmEmbeddings.slice(0, splitIdx);
+    const refELM = elmEmbeddings.slice(splitIdx);
+    const queryBERT = bertEmbeddings.slice(0, splitIdx);
+    const refBERT = bertEmbeddings.slice(splitIdx);
+    const queryLabels = labels.slice(0, splitIdx);
+    const refLabels = labels.slice(splitIdx);
 
     const elmResults = evaluateRecallMRR(queryELM, refELM, queryLabels, refLabels, 5);
     const bertResults = evaluateRecallMRR(queryBERT, refBERT, queryLabels, refLabels, 5);
@@ -140,4 +139,57 @@ const labels = sampleRecords.map(r => r.label);
     runPCAAndSave(bertEmbeddings, labels, 'SentenceBERT');
 
     console.log(`\n✅ Results and PCA files generated.`);
+
+    // Read PCA outputs
+    const elmData = JSON.parse(fs.readFileSync("ELMChain_pca_2d.json", "utf-8"));
+    const bertData = JSON.parse(fs.readFileSync("SentenceBERT_pca_2d.json", "utf-8"));
+
+    const html = `<!DOCTYPE html>
+                    <html>
+                    <head>
+                    <meta charset="utf-8">
+                    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+                    <title>ELM vs BERT Embedding Comparison</title>
+                    </head>
+                    <body>
+                    <h1>ELM vs Sentence-BERT PCA Embeddings</h1>
+                    <div id="elm" style="width: 45%; display: inline-block;"></div>
+                    <div id="bert" style="width: 45%; display: inline-block;"></div>
+                    <script>
+                        const elmData = ${JSON.stringify(elmData)};
+                        const bertData = ${JSON.stringify(bertData)};
+
+                        function createTrace(data, title) {
+                        return {
+                            x: data.map(d => d.x),
+                            y: data.map(d => d.y),
+                            mode: 'markers',
+                            type: 'scatter',
+                            text: data.map(d => d.label),
+                            text: data.map(d => 'Label:' + d.label),
+                            marker: { 
+                            size: 6,
+                            color: data.map(d => d.label), 
+                            colorscale: 'Viridis',
+                            colorbar: { title: 'Class Index' }
+                            },
+                        };
+                        }
+
+                        Plotly.newPlot('elm', [createTrace(elmData)], {
+                        title: 'ELMChain PCA Embeddings',
+                        hovermode: 'closest'
+                        });
+
+                        Plotly.newPlot('bert', [createTrace(bertData)], {
+                        title: 'Sentence-BERT PCA Embeddings',
+                        hovermode: 'closest'
+                        });
+                    </script>
+                    </body>
+                    </html>`;
+
+    fs.writeFileSync("embedding_comparison.html", html);
+    console.log("✅ embedding_comparison.html created.");
+
 })();

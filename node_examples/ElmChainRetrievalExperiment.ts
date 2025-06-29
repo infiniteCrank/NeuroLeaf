@@ -6,7 +6,7 @@ import { EmbeddingRecord } from '../src/core/EmbeddingStore';
 import { evaluateRetrieval } from '../src/core/Evaluation';
 
 // Load AG News data (train.csv)
-const csvFile = fs.readFileSync('./train.csv', 'utf8');
+const csvFile = fs.readFileSync('../public/ag-news-classification-dataset/train.csv', 'utf8');
 const raw = parse(csvFile, {
     skip_empty_lines: true
 }) as string[][];
@@ -35,6 +35,9 @@ const elm1 = new ELM({
         modelName: "Elm link 1",
         verbose: true,
         toFile: false
+    },
+    metrics: {
+        accuracy: 0.80
     }
 });
 
@@ -47,6 +50,9 @@ const elm2 = new ELM({
         modelName: "Elm link 2",
         verbose: true,
         toFile: false
+    },
+    metrics: {
+        accuracy: 0.02
     }
 });
 

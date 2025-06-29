@@ -1,0 +1,4 @@
+config,start_time,end_time,recall_at_5,mrr
+ELMChain_2_layers_relu_tanh,2025-06-29T12:51:59.892Z,2025-06-29T12:52:01.127Z,0.8550,0.4077
+ELMChain_2_layers_relu_relu,2025-06-29T12:52:01.128Z,2025-06-29T12:52:02.441Z,0.6350,0.4288
+ELMChain_3_layers_deep,2025-06-29T12:52:02.441Z,2025-06-29T12:52:05.184Z,0.8350,0.3559

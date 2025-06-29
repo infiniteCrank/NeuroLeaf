@@ -37,6 +37,7 @@
   "devDependencies": {
     "@types/csv-parse": "^1.1.12",
     "@types/node": "^24.0.3",
+    "@xenova/transformers": "^2.17.2",
     "csv-parse": "^5.6.0",
     "eslint": "^9.29.0",
     "jsdom": "^26.1.0",
@@ -48,5 +49,8 @@
     "typescript": "^5.8.3",
     "vite": "^6.3.5",
     "vitest": "^3.2.4"
+  },
+  "dependencies": {
+    "ml-pca": "^4.1.1"
   }
 }

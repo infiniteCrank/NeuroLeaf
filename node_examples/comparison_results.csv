@@ -1,0 +1,3 @@
+model,recall_at_1,recall_at_5,mrr
+ELMChain,0.3550,0.7350,0.5140
+SentenceBERT,0.5800,0.8200,0.6882

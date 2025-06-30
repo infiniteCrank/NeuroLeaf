@@ -40,6 +40,7 @@ export class ELM {
     public config: ELMConfig;
     public modelName: string;
     public logToFile: boolean;
+    public dropout: number;
 
     public inputWeights: Matrix;
     public biases: Matrix;
@@ -58,6 +59,7 @@ export class ELM {
         this.verbose = cfg.log?.verbose ?? true;
         this.modelName = cfg.log?.modelName ?? 'Unnamed ELM Model';
         this.logToFile = cfg.log?.toFile ?? false;
+        this.dropout = cfg.dropout ?? 0;
 
         this.encoder = new UniversalEncoder({
             charSet: this.charSet,
@@ -114,6 +116,14 @@ export class ELM {
         const H = Activations.apply(tempH.map(row =>
             row.map((val, j) => val + b[j][0])
         ), activationFn);
+
+        if (this.dropout > 0) {
+            for (let i = 0; i < H.length; i++) {
+                for (let j = 0; j < H[0].length; j++) {
+                    if (Math.random() < this.dropout) H[i][j] = 0;
+                }
+            }
+        }
 
         const H_pinv = this.pseudoInverse(H);
         const beta = Matrix.multiply(H_pinv, Y);
@@ -195,6 +205,14 @@ export class ELM {
         const H = Activations.apply(tempH.map(row =>
             row.map((val, j) => val + b[j][0])
         ), activationFn);
+
+        if (this.dropout > 0) {
+            for (let i = 0; i < H.length; i++) {
+                for (let j = 0; j < H[0].length; j++) {
+                    if (Math.random() < this.dropout) H[i][j] = 0;
+                }
+            }
+        }
 
         const H_pinv = this.pseudoInverse(H);
         const beta = Matrix.multiply(H_pinv, Y);

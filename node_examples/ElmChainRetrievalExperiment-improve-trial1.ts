@@ -7,6 +7,11 @@ import { EmbeddingRecord } from "../src/core/EmbeddingStore";
 import { evaluateRetrieval } from "../src/core/Evaluation";
 
 (async () => {
+    // New experiment: deeper ELM chains, leaky ReLU, and dropout variants
+    // This script will test whether adding regularization improves Recall@1
+    // For each configuration, we record Recall@1, Recall@5, and MRR
+    // You can expand the hiddenUnitSequences or activations further
+
     const csvFile = fs.readFileSync("../public/ag-news-classification-dataset/train.csv", "utf8");
     const raw = parse(csvFile, { skip_empty_lines: true }) as string[][];
     const records = raw.map(row => ({ text: row[1].trim(), label: row[0].trim() }));
@@ -26,13 +31,12 @@ import { evaluateRetrieval } from "../src/core/Evaluation";
     const refBERT = bertEmbeddings.slice(splitIdx);
 
     const hiddenUnitSequences = [
-        [512, 256],
-        [256, 128, 64],
-        [128, 64],
-        [256, 128]
+        [512, 256, 128],
+        [256, 128, 64, 32],
+        [512, 256, 128, 64]
     ];
 
-    const activations = ["relu", "tanh"];
+    const activations = ["relu", "tanh", "leakyRelu"];
     const csvLines = ["config,recall_at_1,recall_at_5,mrr"];
 
     function cosineSimilarity(a: number[], b: number[]): number {
@@ -62,7 +66,15 @@ import { evaluateRetrieval } from "../src/core/Evaluation";
     for (const seq of hiddenUnitSequences) {
         for (const act of activations) {
             const layers = seq.map(h => ({ hiddenUnits: h, activation: act }));
-            const elms = layers.map((cfg, i) => new ELM({ activation: cfg.activation, hiddenUnits: cfg.hiddenUnits, maxLen: 50, categories: [], log: { modelName: `ELM layer ${i + 1}`, verbose: false, toFile: false }, metrics: { accuracy: 0.01 } }));
+            const elms = layers.map((cfg, i) => new ELM({
+                activation: cfg.activation,
+                hiddenUnits: cfg.hiddenUnits,
+                maxLen: 50,
+                categories: [],
+                log: { modelName: `ELM layer ${i + 1}`, verbose: false, toFile: false },
+                metrics: { accuracy: 0.01 },
+                dropout: 0.1 // adding dropout for regularization
+            }));
             const chain = new ELMChain(elms);
 
             const encoder = elms[0].encoder;
@@ -84,12 +96,12 @@ import { evaluateRetrieval } from "../src/core/Evaluation";
             const recall1Results = evaluateRetrieval(queries, reference, chain, 1);
             const recall5Results = evaluateRetrieval(queries, reference, chain, 5);
 
-            csvLines.push(`ELMChain_${seq.join("_")}_${act},${recall1Results.recallAtK.toFixed(4)},${recall5Results.recallAtK.toFixed(4)},${recall5Results.mrr.toFixed(4)}`);
+            csvLines.push(`ELMChain_${seq.join("_")}_${act}_dropout,${recall1Results.recallAtK.toFixed(4)},${recall5Results.recallAtK.toFixed(4)},${recall5Results.mrr.toFixed(4)}`);
         }
     }
 
     const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
-    const filename = `automated_experiment_results_${timestamp}.csv`;
+    const filename = `automated_experiment_deeper_dropout_${timestamp}.csv`;
     fs.writeFileSync(filename, csvLines.join("\n"));
     console.log(`\n✅ Experiment complete. Results saved to ${filename}.`);
 })();

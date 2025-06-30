@@ -28,7 +28,8 @@ export interface ELMConfig {
         verbose?: boolean,
         toFile?: boolean,
     }
-    logFileName?: string
+    logFileName?: string,
+    dropout?: number;
 }
 
 export const defaultConfig: Required<Pick<ELMConfig, 'hiddenUnits' | 'maxLen' | 'activation' | 'charSet' | 'useTokenizer' | 'tokenizerDelimiter'>> = {

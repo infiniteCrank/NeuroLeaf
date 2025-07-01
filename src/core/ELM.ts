@@ -160,8 +160,6 @@ export class ELM {
         this.model = { W, b, beta };
 
         const predictions = Matrix.multiply(H, beta);
-        const results: Record<string, number> = {};
-        let allPassed = true;
 
         if (this.metrics) {
             const rmse = this.calculateRMSE(Y, predictions);
@@ -170,6 +168,9 @@ export class ELM {
             const f1 = this.calculateF1Score(Y, predictions);
             const ce = this.calculateCrossEntropy(Y, predictions);
             const r2 = this.calculateR2Score(Y, predictions);
+
+            const results: Record<string, number> = {};
+            let allPassed = true;
 
             if (this.metrics.rmse !== undefined) {
                 results.rmse = rmse;
@@ -208,7 +209,12 @@ export class ELM {
                 if (this.verbose) console.log("❌ Model not saved: One or more thresholds not met.");
             }
         } else {
-            throw new Error("No metrics defined in config. Please specify at least one metric to evaluate.");
+            // No metrics—always save the model
+            this.savedModelJSON = JSON.stringify(this.model);
+            if (this.verbose) console.log("✅ Model trained with no metrics—saved by default.");
+            if (this.config.exportFileName) {
+                this.saveModelAsJSONFile(this.config.exportFileName);
+            }
         }
     }
 
@@ -254,8 +260,6 @@ export class ELM {
         this.model = { W, b, beta };
 
         const predictions = Matrix.multiply(H, beta);
-        const results: Record<string, number> = {};
-        let allPassed = true;
 
         if (this.metrics) {
             const rmse = this.calculateRMSE(Y, predictions);
@@ -265,31 +269,29 @@ export class ELM {
             const ce = this.calculateCrossEntropy(Y, predictions);
             const r2 = this.calculateR2Score(Y, predictions);
 
+            const results: Record<string, number> = {};
+            let allPassed = true;
+
             if (this.metrics.rmse !== undefined) {
                 results.rmse = rmse;
                 if (rmse > this.metrics.rmse) allPassed = false;
             }
-
             if (this.metrics.mae !== undefined) {
                 results.mae = mae;
                 if (mae > this.metrics.mae) allPassed = false;
             }
-
             if (this.metrics.accuracy !== undefined) {
                 results.accuracy = acc;
                 if (acc < this.metrics.accuracy) allPassed = false;
             }
-
             if (this.metrics.f1 !== undefined) {
                 results.f1 = f1;
                 if (f1 < this.metrics.f1) allPassed = false;
             }
-
             if (this.metrics.crossEntropy !== undefined) {
                 results.crossEntropy = ce;
                 if (ce > this.metrics.crossEntropy) allPassed = false;
             }
-
             if (this.metrics.r2 !== undefined) {
                 results.r2 = r2;
                 if (r2 < this.metrics.r2) allPassed = false;
@@ -302,7 +304,6 @@ export class ELM {
             if (allPassed) {
                 this.savedModelJSON = JSON.stringify(this.model);
                 if (this.verbose) console.log("✅ Model passed thresholds and was saved to JSON.");
-
                 if (this.config.exportFileName) {
                     this.saveModelAsJSONFile(this.config.exportFileName);
                 }
@@ -310,7 +311,12 @@ export class ELM {
                 if (this.verbose) console.log("❌ Model not saved: One or more thresholds not met.");
             }
         } else {
-            throw new Error("No metrics defined in config. Please specify at least one metric to evaluate.");
+            // No metrics—always save
+            this.savedModelJSON = JSON.stringify(this.model);
+            if (this.verbose) console.log("✅ Model trained with no metrics—saved by default.");
+            if (this.config.exportFileName) {
+                this.saveModelAsJSONFile(this.config.exportFileName);
+            }
         }
     }
 

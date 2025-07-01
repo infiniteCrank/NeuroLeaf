@@ -82,7 +82,7 @@ import { evaluateRetrieval } from "../src/core/Evaluation";
                             hiddenUnits: h,
                             maxLen: 50,
                             categories: [],
-                            log: { modelName: `ELM layer ${i + 1}`, verbose: false, toFile: false },
+                            log: { modelName: `ELM layer ${i + 1}`, verbose: true, toFile: false },
                             metrics: { accuracy: 0.01 },
                             dropout
                         })

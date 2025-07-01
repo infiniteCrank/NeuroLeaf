@@ -38,10 +38,10 @@ import { evaluateRetrieval } from "../src/core/Evaluation";
     const csvLines = ["config,run,recall_at_1,recall_at_5,mrr"];
 
     function cosineSimilarity(a: number[], b: number[]): number {
-        const dot = a.reduce((s, ai, i) => s + ai * b[i], 0);
+        const dot = a.reduce((sum, ai, i) => sum + ai * b[i], 0);
         const normA = Math.sqrt(a.reduce((s, ai) => s + ai * ai, 0));
         const normB = Math.sqrt(b.reduce((s, bi) => s + bi * bi, 0));
-        return dot / (normA * normB);
+        return normA && normB ? dot / (normA * normB) : 0;
     }
 
     function evaluateRecallMRR(query: number[][], reference: number[][], qLabels: string[], rLabels: string[], k: number) {
@@ -64,7 +64,7 @@ import { evaluateRetrieval } from "../src/core/Evaluation";
     const bertResults = evaluateRecallMRR(queryBERT, refBERT, queryLabels, refLabels, 5);
     csvLines.unshift(`SentenceBERT_Baseline,NA,${bertResults.recallK.toFixed(4)},${bertResults.mrr.toFixed(4)}`);
 
-    function normalize(v: number[]): number[] {
+    function l2normalize(v: number[]): number[] {
         const norm = Math.sqrt(v.reduce((s, x) => s + x * x, 0));
         return norm === 0 ? v : v.map(x => x / norm);
     }
@@ -83,44 +83,70 @@ import { evaluateRetrieval } from "../src/core/Evaluation";
                         hiddenUnits: h,
                         maxLen: 50,
                         categories: [],
-                        log: { modelName: `ELM layer ${i + 1}`, verbose: false, toFile: false },
+                        log: { modelName: `ELM layer ${i + 1}`, verbose: true, toFile: false },
                         metrics: { accuracy: 0.01 },
                         dropout
                     })
                 );
 
+                const chain = new ELMChain(elms);
                 const encoder = elms[0].encoder;
                 const encodedVectors = texts.map(t => encoder.normalize(encoder.encode(t)));
                 let inputs = encodedVectors;
 
-                for (const [layerIdx, elm] of elms.entries()) {
-                    elm.trainFromData(encodedVectors, inputs);
+                for (const elm of elms) {
+                    // Generate random target projections
+                    const targetDim = Math.min(inputs[0].length, elm.hiddenUnits);
+                    const randomTargetMatrix = Array.from({ length: inputs.length }, () =>
+                        Array.from({ length: targetDim }, () => Math.random())
+                    );
+
+                    elm.trainFromData(inputs, randomTargetMatrix, { reuseWeights: false });
+
                     inputs = inputs.map(vec => elm.getEmbedding([vec])[0]);
 
+                    // Diagnostics
                     const flat = inputs.flat();
                     const mean = flat.reduce((a, b) => a + b, 0) / flat.length;
-                    const varSum = flat.reduce((a, b) => a + (b - mean) ** 2, 0);
-                    const variance = varSum / flat.length;
-                    const min = Math.min(...flat);
-                    const max = Math.max(...flat);
+                    const variance = flat.reduce((a, b) => a + (b - mean) ** 2, 0) / flat.length;
+                    console.log(`  Layer embedding stats: mean=${mean.toFixed(6)}, variance=${variance.toFixed(6)}`);
 
-                    console.log(`  Layer ${layerIdx + 1}: mean=${mean.toFixed(6)}, variance=${variance.toFixed(6)}, min=${min.toFixed(6)}, max=${max.toFixed(6)}`);
+                    // Sample cosine similarities
+                    const pairA = inputs[Math.floor(Math.random() * inputs.length)];
+                    const pairB = inputs[Math.floor(Math.random() * inputs.length)];
+                    const cosSim = cosineSimilarity(pairA, pairB);
+                    console.log(`  Sample cosine similarity: ${cosSim.toFixed(4)}`);
                 }
 
-                // Only L2 normalize final embeddings
+                // Normalize only at the end
                 const embeddingStore: EmbeddingRecord[] = records.slice(0, sampleSize).map((rec, i) => ({
-                    embedding: normalize(inputs[i]),
+                    embedding: l2normalize(inputs[i]),
                     metadata: { text: rec.text, label: rec.label }
                 }));
 
                 const queries = embeddingStore.slice(0, splitIdx);
                 const reference = embeddingStore.slice(splitIdx);
 
-                const recall1Results = evaluateRecallMRR(queries.map(e => e.embedding), reference.map(e => e.embedding), queryLabels, refLabels, 1);
-                const recall5Results = evaluateRecallMRR(queries.map(e => e.embedding), reference.map(e => e.embedding), queryLabels, refLabels, 5);
+                const recall1Results = evaluateRecallMRR(
+                    queries.map(q => q.embedding),
+                    reference.map(r => r.embedding),
+                    queryLabels,
+                    refLabels,
+                    1
+                );
+                const recall5Results = evaluateRecallMRR(
+                    queries.map(q => q.embedding),
+                    reference.map(r => r.embedding),
+                    queryLabels,
+                    refLabels,
+                    5
+                );
+
+                // Join activation names so it's clear which hybrid is used
+                const activationPattern = hybridActivations.join("-");
 
                 csvLines.push(
-                    `ELMChain_${seq.join("_")}_hybrid_dropout${dropout}_run${run},` +
+                    `ELMChain_${seq.join("_")}_${activationPattern}_dropout${dropout}_run${run},` +
                     `${recall1Results.recall1.toFixed(4)},${recall5Results.recallK.toFixed(4)},${recall5Results.mrr.toFixed(4)}`
                 );
             }
@@ -128,7 +154,7 @@ import { evaluateRetrieval } from "../src/core/Evaluation";
     }
 
     const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
-    const filename = `diagnostic_experiment_${timestamp}.csv`;
+    const filename = `automated_experiment_dropout_hybrid_randomtarget_${timestamp}.csv`;
     fs.writeFileSync(filename, csvLines.join("\n"));
     console.log(`\n✅ Experiment complete. Results saved to ${filename}.`);
 })();

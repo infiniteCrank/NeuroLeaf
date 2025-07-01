@@ -7,6 +7,12 @@ import { evaluateEnsembleRetrieval } from "../src/core/evaluateEnsembleRetrieval
 import { TFIDFVectorizer } from "../src/core/TFIDF"; // <--- Make sure you saved the helper
 
 (async () => {
+
+    function l2normalize(v: number[]): number[] {
+        const norm = Math.sqrt(v.reduce((s, x) => s + x * x, 0));
+        return norm === 0 ? v : v.map(x => x / norm);
+    }
+
     const csvFile = fs.readFileSync("../public/ag-news-classification-dataset/train.csv", "utf8");
     const raw = parse(csvFile, { skip_empty_lines: true }) as string[][];
     const records = raw.map(row => ({ text: row[1].trim(), label: row[0].trim() }));
@@ -20,7 +26,26 @@ import { TFIDFVectorizer } from "../src/core/TFIDF"; // <--- Make sure you saved
     const tfidfVectors = vectorizer.vectorizeAll().map(v => TFIDFVectorizer.l2normalize(v));
     console.log(`✅ TFIDF vectors ready.`);
 
+    // Baseline retrieval with raw TFIDF embeddings
+    console.log(`\n🔍 Evaluating baseline retrieval using raw TFIDF cosine similarity...`);
+
+    // Build EmbeddingRecords
+    const rawTFIDFEmbeddings: EmbeddingRecord[] = records.slice(0, sampleSize).map((rec, i) => ({
+        embedding: l2normalize(tfidfVectors[i]),
+        metadata: { text: rec.text, label: rec.label }
+    }));
+
     const splitIdx = Math.floor(texts.length * 0.2);
+    const queryTFIDF = rawTFIDFEmbeddings.slice(0, splitIdx);
+    const referenceTFIDF = rawTFIDFEmbeddings.slice(splitIdx);
+
+    // Evaluate retrieval (no ELM chains)
+    const tfidfResults = evaluateEnsembleRetrieval(queryTFIDF, referenceTFIDF, [], 5);
+
+    console.log(
+        `✅ TFIDF Baseline Results: Recall@1=${tfidfResults.recallAt1.toFixed(4)} ` +
+        `Recall@5=${tfidfResults.recallAtK.toFixed(4)} MRR=${tfidfResults.mrr.toFixed(4)}`
+    );
 
     const hiddenUnitSequence = [512, 256, 256, 128, 128, 64, 64, 32, 16, 8];
     const dropout = 0.02;
@@ -28,10 +53,11 @@ import { TFIDFVectorizer } from "../src/core/TFIDF"; // <--- Make sure you saved
 
     const csvLines = ["config,run,recall_at_1,recall_at_5,mrr"];
 
-    function l2normalize(v: number[]): number[] {
-        const norm = Math.sqrt(v.reduce((s, x) => s + x * x, 0));
-        return norm === 0 ? v : v.map(x => x / norm);
-    }
+    // Save to CSV
+    csvLines.push(
+        `TFIDF_Baseline,NA,${tfidfResults.recallAt1.toFixed(4)},` +
+        `${tfidfResults.recallAtK.toFixed(4)},${tfidfResults.mrr.toFixed(4)}`
+    );
 
     for (let run = 1; run <= 1; run++) {
         console.log(`\n🔹 Run ${run}`);

@@ -336,16 +336,31 @@
             }
         }
         trainFromData(X, Y) {
-            const W = this.randomMatrix(this.hiddenUnits, X[0].length);
-            const b = this.randomMatrix(this.hiddenUnits, 1);
+            // Reuse existing weights if model exists, else initialize
+            let W, b;
+            if (this.model) {
+                W = this.model.W;
+                b = this.model.b;
+                if (this.verbose)
+                    console.log("🔄 Reusing existing weights/biases for training.");
+            }
+            else {
+                W = this.randomMatrix(this.hiddenUnits, X[0].length);
+                b = this.randomMatrix(this.hiddenUnits, 1);
+            }
             const tempH = Matrix.multiply(X, Matrix.transpose(W));
             const activationFn = Activations.get(this.activation);
             const H = Activations.apply(tempH.map(row => row.map((val, j) => val + b[j][0])), activationFn);
             if (this.dropout > 0) {
+                const keepProb = 1 - this.dropout;
                 for (let i = 0; i < H.length; i++) {
                     for (let j = 0; j < H[0].length; j++) {
-                        if (Math.random() < this.dropout)
+                        if (Math.random() < this.dropout) {
                             H[i][j] = 0;
+                        }
+                        else {
+                            H[i][j] /= keepProb; // Scale up to preserve expectation
+                        }
                     }
                 }
             }
@@ -427,10 +442,15 @@
             const activationFn = Activations.get(this.activation);
             const H = Activations.apply(tempH.map(row => row.map((val, j) => val + b[j][0])), activationFn);
             if (this.dropout > 0) {
+                const keepProb = 1 - this.dropout;
                 for (let i = 0; i < H.length; i++) {
                     for (let j = 0; j < H[0].length; j++) {
-                        if (Math.random() < this.dropout)
+                        if (Math.random() < this.dropout) {
                             H[i][j] = 0;
+                        }
+                        else {
+                            H[i][j] /= keepProb; // Scale up to preserve expectation
+                        }
                     }
                 }
             }

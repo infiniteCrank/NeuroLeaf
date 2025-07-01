@@ -7,11 +7,6 @@ import { EmbeddingRecord } from "../src/core/EmbeddingStore";
 import { evaluateRetrieval } from "../src/core/Evaluation";
 
 (async () => {
-    // New experiment: deeper ELM chains, leaky ReLU, and dropout variants
-    // This script will test whether adding regularization improves Recall@1
-    // For each configuration, we record Recall@1, Recall@5, and MRR
-    // You can expand the hiddenUnitSequences or activations further
-
     const csvFile = fs.readFileSync("../public/ag-news-classification-dataset/train.csv", "utf8");
     const raw = parse(csvFile, { skip_empty_lines: true }) as string[][];
     const records = raw.map(row => ({ text: row[1].trim(), label: row[0].trim() }));
@@ -37,6 +32,7 @@ import { evaluateRetrieval } from "../src/core/Evaluation";
     ];
 
     const activations = ["relu", "tanh", "leakyRelu"];
+    const dropouts = [0.05, 0.1, 0.2];
     const csvLines = ["config,recall_at_1,recall_at_5,mrr"];
 
     function cosineSimilarity(a: number[], b: number[]): number {
@@ -65,43 +61,48 @@ import { evaluateRetrieval } from "../src/core/Evaluation";
 
     for (const seq of hiddenUnitSequences) {
         for (const act of activations) {
-            const layers = seq.map(h => ({ hiddenUnits: h, activation: act }));
-            const elms = layers.map((cfg, i) => new ELM({
-                activation: cfg.activation,
-                hiddenUnits: cfg.hiddenUnits,
-                maxLen: 50,
-                categories: [],
-                log: { modelName: `ELM layer ${i + 1}`, verbose: false, toFile: false },
-                metrics: { accuracy: 0.01 },
-                dropout: 0.1 // adding dropout for regularization
-            }));
-            const chain = new ELMChain(elms);
+            for (const dropout of dropouts) {
+                const layers = seq.map(h => ({ hiddenUnits: h, activation: act }));
+                console.log(`\n🔹 Testing config: hiddenUnits ${JSON.stringify(seq)}, activation ${act}, dropout ${dropout}`);
 
-            const encoder = elms[0].encoder;
-            const encodedVectors = texts.map(t => encoder.normalize(encoder.encode(t)));
-            let inputs = encodedVectors;
-            for (const elm of elms) {
-                elm.trainFromData(inputs, inputs);
-                inputs = inputs.map(vec => elm.getEmbedding([vec])[0]);
+                const elms = layers.map((cfg, i) => new ELM({
+                    activation: cfg.activation,
+                    hiddenUnits: cfg.hiddenUnits,
+                    maxLen: 50,
+                    categories: [],
+                    log: { modelName: `ELM layer ${i + 1}`, verbose: false, toFile: false },
+                    metrics: { accuracy: 0.01 },
+                    dropout: dropout
+                }));
+
+                const chain = new ELMChain(elms);
+
+                const encoder = elms[0].encoder;
+                const encodedVectors = texts.map(t => encoder.normalize(encoder.encode(t)));
+                let inputs = encodedVectors;
+                for (const elm of elms) {
+                    elm.trainFromData(inputs, inputs);
+                    inputs = inputs.map(vec => elm.getEmbedding([vec])[0]);
+                }
+
+                const embeddingStore: EmbeddingRecord[] = records.slice(0, sampleSize).map((rec, i) => ({
+                    embedding: chain.getEmbedding([encodedVectors[i]])[0],
+                    metadata: { text: rec.text, label: rec.label }
+                }));
+
+                const queries = embeddingStore.slice(0, splitIdx);
+                const reference = embeddingStore.slice(splitIdx);
+
+                const recall1Results = evaluateRetrieval(queries, reference, chain, 1);
+                const recall5Results = evaluateRetrieval(queries, reference, chain, 5);
+
+                csvLines.push(`ELMChain_${seq.join("_")}_${act}_dropout${dropout},${recall1Results.recallAtK.toFixed(4)},${recall5Results.recallAtK.toFixed(4)},${recall5Results.mrr.toFixed(4)}`);
             }
-
-            const embeddingStore: EmbeddingRecord[] = records.slice(0, sampleSize).map((rec, i) => ({
-                embedding: chain.getEmbedding([encodedVectors[i]])[0],
-                metadata: { text: rec.text, label: rec.label }
-            }));
-
-            const queries = embeddingStore.slice(0, splitIdx);
-            const reference = embeddingStore.slice(splitIdx);
-
-            const recall1Results = evaluateRetrieval(queries, reference, chain, 1);
-            const recall5Results = evaluateRetrieval(queries, reference, chain, 5);
-
-            csvLines.push(`ELMChain_${seq.join("_")}_${act}_dropout,${recall1Results.recallAtK.toFixed(4)},${recall5Results.recallAtK.toFixed(4)},${recall5Results.mrr.toFixed(4)}`);
         }
     }
 
     const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
-    const filename = `automated_experiment_deeper_dropout_${timestamp}.csv`;
+    const filename = `automated_experiment_dropout_search_${timestamp}.csv`;
     fs.writeFileSync(filename, csvLines.join("\n"));
     console.log(`\n✅ Experiment complete. Results saved to ${filename}.`);
 })();

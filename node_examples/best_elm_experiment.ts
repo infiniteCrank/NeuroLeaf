@@ -29,7 +29,6 @@ import { TFIDFVectorizer } from "../src/core/TFIDF"; // <--- Make sure you saved
     // Baseline retrieval with raw TFIDF embeddings
     console.log(`\n🔍 Evaluating baseline retrieval using raw TFIDF cosine similarity...`);
 
-    // Build EmbeddingRecords
     const rawTFIDFEmbeddings: EmbeddingRecord[] = records.slice(0, sampleSize).map((rec, i) => ({
         embedding: l2normalize(tfidfVectors[i]),
         metadata: { text: rec.text, label: rec.label }
@@ -39,7 +38,6 @@ import { TFIDFVectorizer } from "../src/core/TFIDF"; // <--- Make sure you saved
     const queryTFIDF = rawTFIDFEmbeddings.slice(0, splitIdx);
     const referenceTFIDF = rawTFIDFEmbeddings.slice(splitIdx);
 
-    // Evaluate retrieval (no ELM chains)
     const tfidfResults = evaluateEnsembleRetrieval(queryTFIDF, referenceTFIDF, [], 5);
 
     console.log(
@@ -53,11 +51,16 @@ import { TFIDFVectorizer } from "../src/core/TFIDF"; // <--- Make sure you saved
 
     const csvLines = ["config,run,recall_at_1,recall_at_5,mrr"];
 
-    // Save to CSV
     csvLines.push(
         `TFIDF_Baseline,NA,${tfidfResults.recallAt1.toFixed(4)},` +
         `${tfidfResults.recallAtK.toFixed(4)},${tfidfResults.mrr.toFixed(4)}`
     );
+
+    // Make sure the directory for weights exists
+    const weightsDir = "./models";
+    if (!fs.existsSync(weightsDir)) {
+        fs.mkdirSync(weightsDir);
+    }
 
     for (let run = 1; run <= 1; run++) {
         console.log(`\n🔹 Run ${run}`);
@@ -65,7 +68,7 @@ import { TFIDFVectorizer } from "../src/core/TFIDF"; // <--- Make sure you saved
         const ensembleChains: ELMChain[] = [];
 
         for (let e = 0; e < ensembleSize; e++) {
-            console.log(`  🎯 Training ELMChain #${e + 1}`);
+            console.log(`  🎯 Preparing ELMChain #${e + 1}`);
 
             const elms = hiddenUnitSequence.map((h, i) =>
                 new ELM({
@@ -82,18 +85,29 @@ import { TFIDFVectorizer } from "../src/core/TFIDF"; // <--- Make sure you saved
             let inputs = tfidfVectors;
 
             for (const [layerIdx, elm] of elms.entries()) {
-                // Train to reconstruct TFIDF itself
-                elm.trainFromData(inputs, tfidfVectors, { reuseWeights: false });
+                const weightsPath = `${weightsDir}/elm_run${run}_chain${e}_layer${layerIdx}.json`;
+
+                if (fs.existsSync(weightsPath)) {
+                    const saved = fs.readFileSync(weightsPath, "utf-8");
+                    elm.loadModelFromJSON(saved);
+                    console.log(`✅ Loaded saved weights for ELM #${layerIdx + 1} in chain #${e + 1}`);
+                } else {
+                    console.log(`⚙️ Training ELM #${layerIdx + 1} in chain #${e + 1}...`);
+                    elm.trainFromData(inputs, tfidfVectors, { reuseWeights: false });
+
+                    if (elm.model) {
+                        const json = JSON.stringify(elm.model);
+                        fs.writeFileSync(weightsPath, json);
+                        console.log(`💾 Saved weights for ELM #${layerIdx + 1} in chain #${e + 1}`);
+                    }
+                }
 
                 let outputs = inputs.map(vec => elm.getEmbedding([vec])[0]);
 
-                // Residual connection
                 outputs = outputs.map((o, i) => o.map((v, j) => v + inputs[i][j]));
 
-                // L2 normalization
                 outputs = outputs.map(l2normalize);
 
-                // Per-dimension scaling
                 const dimMeans = Array(outputs[0].length).fill(0);
                 for (const v of outputs)
                     for (let j = 0; j < dimMeans.length; j++)
@@ -104,13 +118,10 @@ import { TFIDFVectorizer } from "../src/core/TFIDF"; // <--- Make sure you saved
                 const scalingFactors = dimMeans.map(m => 1 / (Math.abs(m) + 1e-8));
                 outputs = outputs.map(vec => vec.map((x, j) => x * scalingFactors[j]));
 
-                // Normalize again
                 outputs = outputs.map(l2normalize);
 
-                // Update inputs
                 inputs = outputs;
 
-                // Diagnostics
                 const flat = outputs.flat();
                 const mean = flat.reduce((a, b) => a + b, 0) / flat.length;
                 const variance = flat.reduce((a, b) => a + (b - mean) ** 2, 0) / flat.length;
@@ -120,7 +131,6 @@ import { TFIDFVectorizer } from "../src/core/TFIDF"; // <--- Make sure you saved
             ensembleChains.push(new ELMChain(elms));
         }
 
-        // Evaluation embeddings are just the raw TFIDF
         const embeddingStore: EmbeddingRecord[] = records.slice(0, sampleSize).map((rec, i) => ({
             embedding: l2normalize(tfidfVectors[i]),
             metadata: { text: rec.text, label: rec.label }

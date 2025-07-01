@@ -128,3 +128,73 @@ export class TFIDF {
         return this.processedWords.indexOf(word);
     }
 }
+
+export class TFIDFVectorizer {
+    vocabulary: string[];
+    tfidf: TFIDF;
+    docTexts: string[];
+
+    constructor(docs: string[], maxVocabSize = 2000) {
+        this.docTexts = docs;
+        this.tfidf = new TFIDF(docs);
+
+        // Collect all unique terms with frequencies
+        const termFreq: Record<string, number> = {};
+
+        docs.forEach(doc => {
+            const tokens = doc.split(/\s+/);
+            const cleaned = tokens.map(t => t.replace(/[^a-zA-Z0-9]+/g, ""));
+            const processed = TFIDF.processWords(cleaned);
+            processed.forEach(t => {
+                termFreq[t] = (termFreq[t] || 0) + 1;
+            });
+        });
+
+        // Sort terms by frequency descending
+        const sortedTerms = Object.entries(termFreq)
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, maxVocabSize)
+            .map(([term]) => term);
+
+        this.vocabulary = sortedTerms;
+        console.log(`✅ TFIDFVectorizer vocabulary capped at: ${this.vocabulary.length} terms.`);
+    }
+
+    /**
+     * Returns the dense TFIDF vector for a given document text.
+     */
+    vectorize(doc: string): number[] {
+        const tokens = doc.split(/\s+/);
+        const cleaned = tokens.map(t => t.replace(/[^a-zA-Z0-9]+/g, ""));
+        const processed = TFIDF.processWords(cleaned);
+
+        // Compute term frequency in this document
+        const termFreq: Record<string, number> = {};
+        processed.forEach(token => {
+            termFreq[token] = (termFreq[token] || 0) + 1;
+        });
+
+        const totalTerms = processed.length;
+
+        return this.vocabulary.map(term => {
+            const tf = totalTerms > 0 ? (termFreq[term] || 0) / totalTerms : 0;
+            const idf = this.tfidf.inverseDocFreq[term] || 0;
+            return tf * idf;
+        });
+    }
+
+    /**
+     * Returns vectors for all original training docs.
+     */
+    vectorizeAll(): number[][] {
+        return this.docTexts.map(doc => this.vectorize(doc));
+    }
+
+    /**
+     * Optional L2 normalization utility.
+     */
+    static l2normalize(vec: number[]): number[] {
+        const norm = Math.sqrt(vec.reduce((s, x) => s + x * x, 0));
+        return norm === 0 ? vec : vec.map(x => x / norm);
+    }
+}

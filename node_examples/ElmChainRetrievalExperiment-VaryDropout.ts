@@ -81,7 +81,8 @@ import { evaluateRetrieval } from "../src/core/Evaluation";
                 const encodedVectors = texts.map(t => encoder.normalize(encoder.encode(t)));
                 let inputs = encodedVectors;
                 for (const elm of elms) {
-                    elm.trainFromData(inputs, inputs);
+                    //elm.trainFromData(inputs, inputs);
+                    elm.trainFromData(encodedVectors, inputs);
                     inputs = inputs.map(vec => elm.getEmbedding([vec])[0]);
                 }
 

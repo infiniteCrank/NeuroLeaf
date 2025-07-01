@@ -41,7 +41,7 @@ import { evaluateRetrieval } from "../src/core/Evaluation";
         const dot = a.reduce((sum, ai, i) => sum + ai * b[i], 0);
         const normA = Math.sqrt(a.reduce((s, ai) => s + ai * ai, 0));
         const normB = Math.sqrt(b.reduce((s, bi) => s + bi * bi, 0));
-        return dot / (normA * normB);
+        return normA && normB ? dot / (normA * normB) : 0;
     }
 
     function evaluateRecallMRR(query: number[][], reference: number[][], qLabels: string[], rLabels: string[], k: number) {
@@ -90,39 +90,35 @@ import { evaluateRetrieval } from "../src/core/Evaluation";
                 );
 
                 const chain = new ELMChain(elms);
-
                 const encoder = elms[0].encoder;
                 const encodedVectors = texts.map(t => encoder.normalize(encoder.encode(t)));
                 let inputs = encodedVectors;
 
                 for (const elm of elms) {
-                    elm.trainFromData(encodedVectors, inputs);
+                    // Generate random target projections
+                    const targetDim = Math.min(inputs[0].length, elm.hiddenUnits);
+                    const randomTargetMatrix = Array.from({ length: inputs.length }, () =>
+                        Array.from({ length: targetDim }, () => Math.random())
+                    );
+
+                    elm.trainFromData(inputs, randomTargetMatrix, { reuseWeights: false });
+
                     inputs = inputs.map(vec => elm.getEmbedding([vec])[0]);
-
-                    // Layer normalization
-                    const dims = inputs[0].length;
-                    const means = Array(dims).fill(0);
-                    for (const v of inputs) for (let j = 0; j < dims; j++) means[j] += v[j];
-                    for (let j = 0; j < dims; j++) means[j] /= inputs.length;
-                    const vars = Array(dims).fill(0);
-                    for (const v of inputs) for (let j = 0; j < dims; j++) vars[j] += (v[j] - means[j]) ** 2;
-                    for (let j = 0; j < dims; j++) vars[j] /= inputs.length;
-                    for (let i = 0; i < inputs.length; i++) {
-                        for (let j = 0; j < dims; j++) {
-                            inputs[i][j] = (inputs[i][j] - means[j]) / Math.sqrt(vars[j] + 1e-8);
-                        }
-                    }
-
-                    // L2 normalize
-                    inputs = inputs.map(l2normalize);
 
                     // Diagnostics
                     const flat = inputs.flat();
                     const mean = flat.reduce((a, b) => a + b, 0) / flat.length;
                     const variance = flat.reduce((a, b) => a + (b - mean) ** 2, 0) / flat.length;
                     console.log(`  Layer embedding stats: mean=${mean.toFixed(6)}, variance=${variance.toFixed(6)}`);
+
+                    // Sample cosine similarities
+                    const pairA = inputs[Math.floor(Math.random() * inputs.length)];
+                    const pairB = inputs[Math.floor(Math.random() * inputs.length)];
+                    const cosSim = cosineSimilarity(pairA, pairB);
+                    console.log(`  Sample cosine similarity: ${cosSim.toFixed(4)}`);
                 }
 
+                // Normalize only at the end
                 const embeddingStore: EmbeddingRecord[] = records.slice(0, sampleSize).map((rec, i) => ({
                     embedding: l2normalize(inputs[i]),
                     metadata: { text: rec.text, label: rec.label }
@@ -131,20 +127,31 @@ import { evaluateRetrieval } from "../src/core/Evaluation";
                 const queries = embeddingStore.slice(0, splitIdx);
                 const reference = embeddingStore.slice(splitIdx);
 
-                // ✅ Use chain, NOT individual ELM
-                const recall1Results = evaluateRetrieval(queries, reference, chain, 1);
-                const recall5Results = evaluateRetrieval(queries, reference, chain, 5);
+                const recall1Results = evaluateRecallMRR(
+                    queries.map(q => q.embedding),
+                    reference.map(r => r.embedding),
+                    queryLabels,
+                    refLabels,
+                    1
+                );
+                const recall5Results = evaluateRecallMRR(
+                    queries.map(q => q.embedding),
+                    reference.map(r => r.embedding),
+                    queryLabels,
+                    refLabels,
+                    5
+                );
 
                 csvLines.push(
                     `ELMChain_${seq.join("_")}_hybrid_dropout${dropout}_run${run},` +
-                    `${recall1Results.recallAtK.toFixed(4)},${recall5Results.recallAtK.toFixed(4)},${recall5Results.mrr.toFixed(4)}`
+                    `${recall1Results.recall1.toFixed(4)},${recall5Results.recallK.toFixed(4)},${recall5Results.mrr.toFixed(4)}`
                 );
             }
         }
     }
 
     const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
-    const filename = `automated_experiment_dropout_hybrid_stabilized_${timestamp}.csv`;
+    const filename = `automated_experiment_dropout_hybrid_randomtarget_${timestamp}.csv`;
     fs.writeFileSync(filename, csvLines.join("\n"));
     console.log(`\n✅ Experiment complete. Results saved to ${filename}.`);
 })();

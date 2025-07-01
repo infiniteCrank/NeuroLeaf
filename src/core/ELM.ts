@@ -69,8 +69,8 @@ export class ELM {
             mode: this.useTokenizer ? 'token' : 'char'
         });
 
-        this.inputWeights = Matrix.random(cfg.hiddenUnits, cfg.maxLen, -1, 1);
-        this.biases = Matrix.random(cfg.hiddenUnits, 1, -1, 1);
+        this.inputWeights = Matrix.fromArray(this.randomMatrix(cfg.hiddenUnits, cfg.maxLen));
+        this.biases = Matrix.fromArray(this.randomMatrix(cfg.hiddenUnits, 1));
 
         this.model = null;
     }
@@ -109,24 +109,30 @@ export class ELM {
         }
     }
 
-    public trainFromData(X: number[][], Y: number[][]): void {
+    public trainFromData(
+        X: number[][],
+        Y: number[][],
+        options?: { reuseWeights?: boolean }
+    ): void {
+        const reuseWeights = options?.reuseWeights === true;
 
-        // Reuse existing weights if model exists, else initialize
         let W: number[][], b: number[][];
-        if (this.model) {
+        if (reuseWeights && this.model) {
             W = this.model.W;
             b = this.model.b;
             if (this.verbose) console.log("🔄 Reusing existing weights/biases for training.");
         } else {
             W = this.randomMatrix(this.hiddenUnits, X[0].length);
             b = this.randomMatrix(this.hiddenUnits, 1);
+            if (this.verbose) console.log("✨ Initializing fresh weights/biases for training.");
         }
 
         const tempH = Matrix.multiply(X, Matrix.transpose(W));
         const activationFn = Activations.get(this.activation);
-        const H = Activations.apply(tempH.map(row =>
-            row.map((val, j) => val + b[j][0])
-        ), activationFn);
+        const H = Activations.apply(
+            tempH.map(row => row.map((val, j) => val + b[j][0])),
+            activationFn
+        );
 
         if (this.dropout > 0) {
             const keepProb = 1 - this.dropout;
@@ -135,7 +141,7 @@ export class ELM {
                     if (Math.random() < this.dropout) {
                         H[i][j] = 0;
                     } else {
-                        H[i][j] /= keepProb; // Scale up to preserve expectation
+                        H[i][j] /= keepProb;
                     }
                 }
             }
@@ -465,8 +471,9 @@ export class ELM {
     }
 
     computeHiddenLayer(X: number[][]): number[][] {
-        const WX = Matrix.multiply(X, Matrix.transpose(this.inputWeights.toArray()));
-        const WXb = WX.map(row => row.map((val, j) => val + this.biases.data[j][0]));
+        if (!this.model) throw new Error("Model not trained.");
+        const WX = Matrix.multiply(X, Matrix.transpose(this.model.W));
+        const WXb = WX.map(row => row.map((val, j) => val + this.model!.b[j][0]));
         const activationFn = Activations.get(this.activation);
         return WXb.map(row => row.map(activationFn));
     }

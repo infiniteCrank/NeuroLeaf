@@ -303,8 +303,8 @@
                 tokenizerDelimiter: this.tokenizerDelimiter,
                 mode: this.useTokenizer ? 'token' : 'char'
             });
-            this.inputWeights = Matrix.random(cfg.hiddenUnits, cfg.maxLen, -1, 1);
-            this.biases = Matrix.random(cfg.hiddenUnits, 1, -1, 1);
+            this.inputWeights = Matrix.fromArray(this.randomMatrix(cfg.hiddenUnits, cfg.maxLen));
+            this.biases = Matrix.fromArray(this.randomMatrix(cfg.hiddenUnits, 1));
             this.model = null;
         }
         oneHot(n, index) {
@@ -318,7 +318,8 @@
             return Matrix.multiply(HtH_inv, Ht);
         }
         randomMatrix(rows, cols) {
-            return Array.from({ length: rows }, () => Array.from({ length: cols }, () => Math.random() * 2 - 1));
+            const limit = Math.sqrt(6 / (rows + cols));
+            return Array.from({ length: rows }, () => Array.from({ length: cols }, () => Math.random() * 2 * limit - limit));
         }
         setCategories(categories) {
             this.categories = categories;
@@ -335,10 +336,10 @@
                 console.error(`❌ Failed to load ${this.modelName} model from JSON:`, e);
             }
         }
-        trainFromData(X, Y) {
-            // Reuse existing weights if model exists, else initialize
+        trainFromData(X, Y, options) {
+            const reuseWeights = (options === null || options === void 0 ? void 0 : options.reuseWeights) === true;
             let W, b;
-            if (this.model) {
+            if (reuseWeights && this.model) {
                 W = this.model.W;
                 b = this.model.b;
                 if (this.verbose)
@@ -347,6 +348,8 @@
             else {
                 W = this.randomMatrix(this.hiddenUnits, X[0].length);
                 b = this.randomMatrix(this.hiddenUnits, 1);
+                if (this.verbose)
+                    console.log("✨ Initializing fresh weights/biases for training.");
             }
             const tempH = Matrix.multiply(X, Matrix.transpose(W));
             const activationFn = Activations.get(this.activation);
@@ -359,7 +362,7 @@
                             H[i][j] = 0;
                         }
                         else {
-                            H[i][j] /= keepProb; // Scale up to preserve expectation
+                            H[i][j] /= keepProb;
                         }
                     }
                 }
@@ -666,8 +669,10 @@
             return 1 - ssRes / ssTot;
         }
         computeHiddenLayer(X) {
-            const WX = Matrix.multiply(X, Matrix.transpose(this.inputWeights.toArray()));
-            const WXb = WX.map(row => row.map((val, j) => val + this.biases.data[j][0]));
+            if (!this.model)
+                throw new Error("Model not trained.");
+            const WX = Matrix.multiply(X, Matrix.transpose(this.model.W));
+            const WXb = WX.map(row => row.map((val, j) => val + this.model.b[j][0]));
             const activationFn = Activations.get(this.activation);
             return WXb.map(row => row.map(activationFn));
         }

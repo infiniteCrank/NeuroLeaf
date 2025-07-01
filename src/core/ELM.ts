@@ -88,8 +88,9 @@ export class ELM {
     }
 
     private randomMatrix(rows: number, cols: number): number[][] {
+        const limit = Math.sqrt(6 / (rows + cols));
         return Array.from({ length: rows }, () =>
-            Array.from({ length: cols }, () => Math.random() * 2 - 1)
+            Array.from({ length: cols }, () => Math.random() * 2 * limit - limit)
         );
     }
 

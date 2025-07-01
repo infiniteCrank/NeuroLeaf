@@ -85,8 +85,50 @@ import { evaluateRetrieval } from "../src/core/Evaluation";
                     inputs = inputs.map(vec => elm.getEmbedding([vec])[0]);
                 }
 
+                // Log embedding stats per layer
+                console.log(`Embedding diagnostics for ${seq.join("_")} ${act} dropout ${dropout}`);
+                inputs = encodedVectors;
+                for (let layerIdx = 0; layerIdx < elms.length; layerIdx++) {
+                    const elm = elms[layerIdx];
+                    const afterLayer = inputs.map(vec => elm.getEmbedding([vec])[0]);
+
+                    // Compute per-dimension variance
+                    const dimMeans = new Array(afterLayer[0].length).fill(0);
+                    const dimVars = new Array(afterLayer[0].length).fill(0);
+
+                    for (const vec of afterLayer) {
+                        for (let j = 0; j < vec.length; j++) {
+                            dimMeans[j] += vec[j];
+                        }
+                    }
+                    for (let j = 0; j < dimMeans.length; j++) {
+                        dimMeans[j] /= afterLayer.length;
+                    }
+                    for (const vec of afterLayer) {
+                        for (let j = 0; j < vec.length; j++) {
+                            const diff = vec[j] - dimMeans[j];
+                            dimVars[j] += diff * diff;
+                        }
+                    }
+                    for (let j = 0; j < dimVars.length; j++) {
+                        dimVars[j] /= afterLayer.length;
+                    }
+
+                    // Report summary
+                    const meanOfMeans = dimMeans.reduce((a, b) => a + b, 0) / dimMeans.length;
+                    const meanVariance = dimVars.reduce((a, b) => a + b, 0) / dimVars.length;
+
+                    console.log(`  Layer ${layerIdx + 1}: mean=${meanOfMeans.toFixed(4)}, variance=${meanVariance.toFixed(4)}`);
+                    inputs = afterLayer;
+                }
+
+                function normalize(v: number[]): number[] {
+                    const norm = Math.sqrt(v.reduce((s, x) => s + x * x, 0));
+                    return norm === 0 ? v : v.map(x => x / norm);
+                }
+
                 const embeddingStore: EmbeddingRecord[] = records.slice(0, sampleSize).map((rec, i) => ({
-                    embedding: chain.getEmbedding([encodedVectors[i]])[0],
+                    embedding: normalize(inputs[i]),
                     metadata: { text: rec.text, label: rec.label }
                 }));
 

@@ -51,6 +51,7 @@
     "vitest": "^3.2.4"
   },
   "dependencies": {
+    "ml-matrix": "^6.12.1",
     "ml-pca": "^4.1.1"
   }
 }

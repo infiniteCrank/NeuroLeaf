@@ -3,7 +3,7 @@ import { parse } from "csv-parse/sync";
 import { ELM } from "../src/core/ELM";
 import { ELMChain } from "../src/core/ELMChain";
 import { UniversalEncoder } from "../src/preprocessing/UniversalEncoder";
-import { TFIDFVectorizer } from "../src/core/TFIDF";
+import { TFIDFVectorizer } from "../src/ml/TFIDF";
 import { EmbeddingRecord } from "../src/core/EmbeddingStore";
 
 // Helpers

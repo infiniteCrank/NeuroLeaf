@@ -17,7 +17,6 @@ function averageVectors(vectors: number[][]): number[] {
         vectors.reduce((s, v) => s + v[i], 0) / vectors.length
     );
 }
-
 function zeroCenter(vectors: number[][]): number[][] {
     const mean = vectors[0].map((_, j) =>
         vectors.reduce((s, v) => s + v[j], 0) / vectors.length
@@ -26,9 +25,21 @@ function zeroCenter(vectors: number[][]): number[][] {
         v.map((x, j) => x - mean[j])
     );
 }
-
-function processEmbeddings(embs: number[][]) {
-    return zeroCenter(embs).map(l2normalize);
+function processEmbeddings(embs: number[][], label = "") {
+    const centered = zeroCenter(embs);
+    const normalized = centered.map(l2normalize);
+    // Compute stats safely without .flat()
+    let sum = 0, count = 0, min = Infinity, max = -Infinity;
+    for (const vec of normalized) {
+        for (const x of vec) {
+            sum += x;
+            count++;
+            if (x < min) min = x;
+            if (x > max) max = x;
+        }
+    }
+    console.log(`✅ [${label}] Embeddings stats: mean=${(sum / count).toFixed(6)} min=${min.toFixed(6)} max=${max.toFixed(6)}`);
+    return normalized;
 }
 
 // Load corpus
@@ -47,7 +58,7 @@ const encoder = new UniversalEncoder({
     useTokenizer: false
 });
 
-// Compute word/sentence/paragraph vectors
+// Compute embeddings
 const wordVectors = paragraphs.map(p => {
     const tokens = p.split(/\s+/).filter(Boolean);
     return l2normalize(averageVectors(tokens.map(t => encoder.normalize(encoder.encode(t)))));
@@ -79,8 +90,6 @@ for (const path of supervisedPaths) {
     }
 }
 console.log(`✅ Loaded ${supervisedPairs.length} supervised pairs.`);
-
-// Encode supervised pairs
 const supQueryVecs = supervisedPairs.map(p =>
     encoder.normalize(encoder.encode(p.query))
 );
@@ -106,7 +115,6 @@ for (const path of negativePaths) {
     }
 }
 console.log(`✅ Loaded ${negativePairs.length} negative pairs.`);
-
 const negQueryVecs = negativePairs.map(p =>
     encoder.normalize(encoder.encode(p.query))
 );
@@ -114,8 +122,14 @@ const negTargetVecs = negativePairs.map(p =>
     encoder.normalize(encoder.encode(p.target))
 );
 
-// Helper: build ELM chain
-function buildChain(name: string, inputDim: number, vectors: number[][], hiddenDims: number[], activations: string[], dropout: number) {
+// Build ELM chains
+function buildChain(
+    name: string,
+    vectors: number[][],
+    hiddenDims: number[],
+    activations: string[],
+    dropout: number
+): { chain: ELMChain, finalEmbeddings: number[][] } {
     const chain: ELM[] = [];
     let inputs = vectors;
     hiddenDims.forEach((h, i) => {
@@ -137,23 +151,25 @@ function buildChain(name: string, inputDim: number, vectors: number[][], hiddenD
             fs.writeFileSync(path, JSON.stringify(elm.model));
             console.log(`💾 Saved ${name}_layer${i}`);
         }
-        inputs = processEmbeddings(elm.computeHiddenLayer(inputs));
+        inputs = processEmbeddings(elm.computeHiddenLayer(inputs), `${name}_layer${i}`);
         chain.push(elm);
     });
-    return new ELMChain(chain);
+    return { chain: new ELMChain(chain), finalEmbeddings: inputs };
 }
 
-// Build encoder chains
-const wordChain = buildChain("word_encoder", wordVectors[0].length, wordVectors, [512, 256, 128], ["relu", "tanh", "leakyRelu"], 0.02);
-const sentenceChain = buildChain("sentence_encoder", sentenceVectors[0].length, sentenceVectors, [512, 256, 128], ["relu", "tanh", "leakyRelu"], 0.02);
-const paragraphChain = buildChain("paragraph_encoder", paragraphVectors[0].length, paragraphVectors, [512, 256, 128], ["relu", "tanh", "leakyRelu"], 0.02);
+const wordResult = buildChain("word_encoder", wordVectors, [512, 256, 128], ["relu", "tanh", "leakyRelu"], 0.02);
+const sentenceResult = buildChain("sentence_encoder", sentenceVectors, [512, 256, 128], ["relu", "tanh", "leakyRelu"], 0.02);
+const paragraphResult = buildChain("paragraph_encoder", paragraphVectors, [512, 256, 128], ["relu", "tanh", "leakyRelu"], 0.02);
 
-// Compute embeddings
-const wordEmb = wordChain.getEmbedding(wordVectors);
-const sentenceEmb = sentenceChain.getEmbedding(sentenceVectors);
-const paragraphEmb = paragraphChain.getEmbedding(paragraphVectors);
+const combinedEmbeddings = wordResult.finalEmbeddings.map((_, i) =>
+    l2normalize([
+        ...wordResult.finalEmbeddings[i],
+        ...sentenceResult.finalEmbeddings[i],
+        ...paragraphResult.finalEmbeddings[i]
+    ])
+);
 
-// Supervised and Negative ELMs
+// Supervised / Negative
 function trainSimpleELM(name: string, X: number[][], Y: number[][]) {
     const elm = new ELM({
         activation: "relu",
@@ -178,20 +194,35 @@ function trainSimpleELM(name: string, X: number[][], Y: number[][]) {
 const supELM = trainSimpleELM("supervisedELM", supQueryVecs, supTargetVecs);
 const negELM = trainSimpleELM("negativeELM", negQueryVecs, negTargetVecs);
 
-// Combine embeddings
-const combinedEmbeddings = wordEmb.map((_, i) =>
-    l2normalize([
-        ...wordEmb[i],
-        ...sentenceEmb[i],
-        ...paragraphEmb[i]
-    ])
-);
-
-// Indexer chain
-let embeddings = combinedEmbeddings;
+// Build indexer chain manually
+let indexerInputs = combinedEmbeddings;
 const indexerDims = [512, 256, 128];
 const indexerActs = ["relu", "tanh", "leakyRelu"];
-const indexerChain = buildChain("indexer", embeddings[0].length, embeddings, indexerDims, indexerActs, 0.02);
+const indexerChainEncoders: ELM[] = [];
+
+indexerDims.forEach((h, i) => {
+    const elm = new ELM({
+        activation: indexerActs[i],
+        hiddenUnits: h,
+        maxLen: indexerInputs[0].length,
+        categories: [],
+        log: { modelName: `indexer_layer${i}`, verbose: true },
+        dropout: 0.02
+    });
+    const path = `./elm_weights/indexer_layer${i}.json`;
+    if (fs.existsSync(path)) {
+        elm.loadModelFromJSON(fs.readFileSync(path, "utf-8"));
+        console.log(`✅ Loaded indexer_layer${i}`);
+    } else {
+        console.log(`⚙️ Training indexer_layer${i}...`);
+        elm.trainFromData(indexerInputs, indexerInputs);
+        fs.writeFileSync(path, JSON.stringify(elm.model));
+        console.log(`💾 Saved indexer_layer${i}`);
+    }
+    indexerInputs = processEmbeddings(elm.computeHiddenLayer(indexerInputs), `indexer_layer${i}`);
+    indexerChainEncoders.push(elm);
+});
+const indexerChain = new ELMChain(indexerChainEncoders);
 
 // TFIDF
 console.log(`⏳ Computing TFIDF vectors...`);
@@ -199,9 +230,9 @@ const vectorizer = new TFIDFVectorizer(paragraphs, 3000);
 const tfidfVectors = vectorizer.vectorizeAll().map(l2normalize);
 console.log(`✅ TFIDF vectors ready.`);
 
-// Save embeddings
+// Save
 const embeddingRecords: EmbeddingRecord[] = paragraphs.map((p, i) => ({
-    embedding: embeddings[i],
+    embedding: indexerInputs[i],
     metadata: { text: p }
 }));
 fs.writeFileSync("./embeddings/combined_embeddings.json", JSON.stringify(embeddingRecords, null, 2));
@@ -214,18 +245,14 @@ function retrieve(query: string, topK = 5) {
     const sentVec = l2normalize(encoder.normalize(encoder.encode(query)));
     const paraVec = sentVec;
 
-    const wordE = wordChain.getEmbedding([avgWord])[0];
-    const sentE = sentenceChain.getEmbedding([sentVec])[0];
-    const paraE = paragraphChain.getEmbedding([paraVec])[0];
+    const wordE = wordResult.chain.getEmbedding([avgWord])[0];
+    const sentE = sentenceResult.chain.getEmbedding([sentVec])[0];
+    const paraE = paragraphResult.chain.getEmbedding([paraVec])[0];
     const supE = supELM.computeHiddenLayer([sentVec])[0];
     const negE = negELM.computeHiddenLayer([sentVec])[0];
 
     const combined = l2normalize([
-        ...wordE,
-        ...sentE,
-        ...paraE,
-        ...supE,
-        ...negE.map(x => -0.5 * x)
+        ...wordE, ...sentE, ...paraE, ...supE, ...negE.map(x => -0.5 * x)
     ]);
     const finalVec = indexerChain.getEmbedding([combined])[0];
     const tfidfQ = l2normalize(vectorizer.vectorize(query));
@@ -238,7 +265,6 @@ function retrieve(query: string, topK = 5) {
     return scored.sort((a, b) => b.dense - a.dense).slice(0, topK);
 }
 
-// Example retrieval
 const results = retrieve("How do you declare a map in Go?");
 console.log(`\n🔍 Retrieval results:`);
 results.forEach((r, i) =>

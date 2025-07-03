@@ -4,7 +4,7 @@ import { ELM } from "../src/core/ELM";
 import { ELMChain } from "../src/core/ELMChain";
 import { EmbeddingRecord } from "../src/core/EmbeddingStore";
 import { evaluateEnsembleRetrieval } from "../src/core/evaluateEnsembleRetrieval";
-import { TFIDFVectorizer } from "../src/core/TFIDF"; // <--- Make sure you saved the helper
+import { TFIDFVectorizer } from "../src/ml/TFIDF";
 
 (async () => {
 

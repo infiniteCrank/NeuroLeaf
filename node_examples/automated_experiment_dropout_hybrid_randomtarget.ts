@@ -4,7 +4,6 @@ import { pipeline } from "@xenova/transformers";
 import { ELM } from "../src/core/ELM";
 import { ELMChain } from "../src/core/ELMChain";
 import { EmbeddingRecord } from "../src/core/EmbeddingStore";
-import { evaluateRetrieval } from "../src/core/Evaluation";
 
 (async () => {
     const csvFile = fs.readFileSync("../public/ag-news-classification-dataset/train.csv", "utf8");

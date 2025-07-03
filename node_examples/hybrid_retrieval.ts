@@ -3,70 +3,79 @@ import { ELM } from "../src/core/ELM";
 import { ELMChain } from "../src/core/ELMChain";
 import { EmbeddingRecord } from "../src/core/EmbeddingStore";
 import { UniversalEncoder } from "../src/preprocessing/UniversalEncoder";
-import { TFIDFVectorizer } from "../src/core/TFIDF";
+import { TFIDFVectorizer } from "../src/ml/TFIDF";
 
-// Utility: L2 normalize
+// Helpers
 function l2normalize(v: number[]): number[] {
     const norm = Math.sqrt(v.reduce((s, x) => s + x * x, 0));
     return norm === 0 ? v : v.map(x => x / norm);
 }
 
-// 1️⃣ Load corpus
+// Load corpus
 const rawText = fs.readFileSync("../public/go_textbook.md", "utf8");
 
-// 2️⃣ Split into paragraphs
-const paragraphs = rawText
-    .split(/\n{2,}/)
-    .map(p => p.trim())
-    .filter(p => p && p.length > 30);
+// ✅ New Section Splitting: each "### Day ..." heading defines a section
+const rawSections = rawText.split(/\n(?=### Day )/);
 
-console.log(`✅ Parsed ${paragraphs.length} paragraphs.`);
+const sections = rawSections
+    .map(block => {
+        const lines = block.split("\n").filter(Boolean);
+        const headingLine = lines.find(l => /^### Day /.test(l)) || "";
+        const contentLines = lines.filter(l => !/^### Day /.test(l));
+        return {
+            heading: headingLine.replace(/^### /, "").trim(),
+            content: contentLines.join(" ").trim()
+        };
+    })
+    .filter(s => s.content.length > 30);
 
-// 3️⃣ Prepare encoders
+console.log(`✅ Parsed ${sections.length} sections.`);
+
+// Prepare encoder
 const encoder = new UniversalEncoder({
     maxLen: 100,
-    charSet: "abcdefghijklmnopqrstuvwxyz0123456789",
-    mode: "token",
-    useTokenizer: true
+    charSet: "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.,:;!?()[]{}<>+-=*/%\"'`_#|\\ \t",
+    mode: "char",
+    useTokenizer: false
 });
 
-// 4️⃣ Compute TFIDF vectors
+// Compute TFIDF vectors
+const tfidfTexts = sections.map(s => `${s.heading}. ${s.content}`);
 console.log(`⏳ Computing TFIDF vectors...`);
-const vectorizer = new TFIDFVectorizer(paragraphs, 3000);
+const vectorizer = new TFIDFVectorizer(tfidfTexts, 3000);
 const tfidfVectors = vectorizer.vectorizeAll().map(l2normalize);
 console.log(`✅ TFIDF vectors ready.`);
 
-// 5️⃣ Compute paragraph embeddings
-const paraVectors = paragraphs.map(p => l2normalize(encoder.normalize(encoder.encode(p))));
+// Compute encoder embeddings
+const sectionVectors = tfidfTexts.map(t =>
+    l2normalize(encoder.normalize(encoder.encode(t)))
+);
 
-// 6️⃣ Train/load a paragraph ELM autoencoder
+// Train or load Paragraph ELM
 const paraELM = new ELM({
     activation: "relu",
     hiddenUnits: 128,
-    maxLen: paraVectors[0].length,
+    maxLen: sectionVectors[0].length,
     categories: [],
     log: { modelName: "ParagraphELM", verbose: true },
     dropout: 0.02
 });
 const weightsPath = "./elm_weights/paragraphELM.json";
 if (fs.existsSync(weightsPath)) {
-    const saved = fs.readFileSync(weightsPath, "utf-8");
-    paraELM.loadModelFromJSON(saved);
+    paraELM.loadModelFromJSON(fs.readFileSync(weightsPath, "utf-8"));
     console.log(`✅ Loaded ParagraphELM weights.`);
 } else {
     console.log(`⚙️ Training ParagraphELM...`);
-    paraELM.trainFromData(paraVectors, paraVectors, { reuseWeights: false });
+    paraELM.trainFromData(sectionVectors, sectionVectors);
     fs.mkdirSync("./elm_weights", { recursive: true });
     fs.writeFileSync(weightsPath, JSON.stringify(paraELM.model));
     console.log(`💾 Saved ParagraphELM weights.`);
 }
+let embeddings = paraELM.computeHiddenLayer(sectionVectors).map(l2normalize);
 
-// 7️⃣ Get ELM embeddings
-let embeddings = paraELM.computeHiddenLayer(paraVectors).map(l2normalize);
-
-// 8️⃣ Train/load an Indexer ELM chain
-const hiddenUnitSequence = [256, 128];
-const indexerELMs = hiddenUnitSequence.map((h, i) =>
+// Train or load Indexer ELM chain
+const hiddenUnits = [256, 128];
+const indexerELMs = hiddenUnits.map((h, i) =>
     new ELM({
         activation: "relu",
         hiddenUnits: h,
@@ -78,15 +87,14 @@ const indexerELMs = hiddenUnitSequence.map((h, i) =>
 );
 
 indexerELMs.forEach((elm, i) => {
-    const p = `./elm_weights/indexerELM_${i}.json`;
-    if (fs.existsSync(p)) {
-        const saved = fs.readFileSync(p, "utf-8");
-        elm.loadModelFromJSON(saved);
+    const path = `./elm_weights/indexerELM_${i}.json`;
+    if (fs.existsSync(path)) {
+        elm.loadModelFromJSON(fs.readFileSync(path, "utf-8"));
         console.log(`✅ Loaded IndexerELM_${i}.`);
     } else {
         console.log(`⚙️ Training IndexerELM_${i}...`);
-        elm.trainFromData(embeddings, embeddings, { reuseWeights: false });
-        fs.writeFileSync(p, JSON.stringify(elm.model));
+        elm.trainFromData(embeddings, embeddings);
+        fs.writeFileSync(path, JSON.stringify(elm.model));
         console.log(`💾 Saved IndexerELM_${i} weights.`);
     }
     embeddings = elm.computeHiddenLayer(embeddings).map(l2normalize);
@@ -95,30 +103,27 @@ indexerELMs.forEach((elm, i) => {
 const indexerChain = new ELMChain(indexerELMs);
 console.log(`✅ Indexer chain ready.`);
 
-// 9️⃣ Save embeddings
-const embeddingRecords: EmbeddingRecord[] = paragraphs.map((p, i) => ({
+// Save embeddings
+const embeddingRecords: EmbeddingRecord[] = sections.map((s, i) => ({
     embedding: embeddings[i],
-    metadata: { text: p }
+    metadata: { heading: s.heading, text: s.content }
 }));
 fs.writeFileSync("./embeddings.json", JSON.stringify(embeddingRecords, null, 2));
 console.log(`💾 Saved embeddings.`);
 
-// 🔍 Hybrid retrieval function
+// Retrieval function
 function retrieve(query: string, topK = 5) {
-    // Dense embedding
-    const paraVec = l2normalize(encoder.normalize(encoder.encode(query)));
-    const paraE = paraELM.computeHiddenLayer([paraVec])[0];
+    const qVec = l2normalize(encoder.normalize(encoder.encode(query)));
+    const paraE = paraELM.computeHiddenLayer([qVec])[0];
     const denseVec = indexerChain.getEmbedding([l2normalize(paraE)])[0];
-
-    // TFIDF vector
     const tfidfVec = l2normalize(vectorizer.vectorize(query));
 
-    // Scoring
     const scored = embeddingRecords.map((r, i) => {
         const denseScore = r.embedding.reduce((s, v, j) => s + v * denseVec[j], 0);
         const tfidfScore = tfidfVectors[i].reduce((s, v, j) => s + v * tfidfVec[j], 0);
         return {
-            text: r.metadata.text,
+            heading: r.metadata.heading,
+            snippet: r.metadata.text.slice(0, 100),
             denseScore,
             tfidfScore,
             totalScore: 0.7 * denseScore + 0.3 * tfidfScore
@@ -128,13 +133,12 @@ function retrieve(query: string, topK = 5) {
     return scored.sort((a, b) => b.totalScore - a.totalScore).slice(0, topK);
 }
 
-// 🔍 Example retrieval
+// Example retrieval
 const results = retrieve("How do you declare a map in Go?");
-console.log(`\n🔍 Hybrid retrieval results:`);
+console.log(`\n🔍 Retrieval results:`);
 results.forEach((r, i) =>
     console.log(
-        `${i + 1}. [Dense=${r.denseScore.toFixed(4)} | TFIDF=${r.tfidfScore.toFixed(4)}] ${r.text.slice(0, 80)}...`
+        `${i + 1}. [Dense=${r.denseScore.toFixed(4)} | TFIDF=${r.tfidfScore.toFixed(4)}] ${r.heading} – ${r.snippet}...`
     )
 );
-
 console.log(`✅ Done.`);

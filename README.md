@@ -1,3 +1,23 @@
+## 📑 Table of Contents
+
+1. [Introduction](#🌟-astermind-readme)
+2. [Features](#✨-features)
+3. [Installation](#🚀-installation)
+4. [Usage Example](#🛠️-usage-example)
+5. [Suggested Experiments](#🧪-suggested-experiments)
+6. [Why Use AsterMind](#🌿-why-use-astermind)
+7. [Core API Documentation](#📚-core-api-documentation)
+8. [Method Options Reference](#📘-method-options-reference)
+9. [ELMConfig Options](#⚙️-elmconfig-options-reference)
+10. [Prebuilt Modules](#🧩-prebuilt-modules-and-custom-modules)
+11. [Text Encoding Modules](#✨-text-encoding-modules)
+12. [UI Binding Utility](#🖥️-ui-binding-utility)
+13. [Data Augmentation Utilities](#✨-data-augmentation-utilities)
+14. [IO Utilities](#⚠️-io-utilities-experimental)
+15. [Example Demos and Scripts](#🧪-example-demos-and-scripts)
+16. [Experiments and Results](#🧪-experiments-and-results)
+17. [License](#📄-license)
+
 # 🌟 AsterMind: Decentralized ELM Framework Inspired by Nature
 
 Welcome to **AsterMind**, a modular, decentralized machine learning framework built around small, cooperating Extreme Learning Machines (ELMs) that self-train, self-evaluate, and self-repair—just like the decentralized nervous system of a starfish.

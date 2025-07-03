@@ -120,7 +120,10 @@ export class ELM {
     public trainFromData(
         X: number[][],
         Y: number[][],
-        options?: { reuseWeights?: boolean }
+        options?: {
+            reuseWeights?: boolean;
+            weights?: number[];
+        }
     ): void {
         const reuseWeights = options?.reuseWeights === true;
 
@@ -137,7 +140,7 @@ export class ELM {
 
         const tempH = Matrix.multiply(X, Matrix.transpose(W));
         const activationFn = Activations.get(this.activation);
-        const H = Activations.apply(
+        let H = Activations.apply(
             tempH.map(row => row.map((val, j) => val + b[j][0])),
             activationFn
         );
@@ -153,6 +156,16 @@ export class ELM {
                     }
                 }
             }
+        }
+
+        if (options?.weights) {
+            const W_arr = options.weights;
+            if (W_arr.length !== H.length) {
+                throw new Error(`Weight array length ${W_arr.length} does not match sample count ${H.length}`);
+            }
+            // Scale each row by sqrt(weight)
+            H = H.map((row, i) => row.map(x => x * Math.sqrt(W_arr[i])));
+            Y = Y.map((row, i) => row.map(x => x * Math.sqrt(W_arr[i])));
         }
 
         const H_pinv = this.pseudoInverse(H);
@@ -218,12 +231,16 @@ export class ELM {
         }
     }
 
-    public train(augmentationOptions?: {
-        suffixes?: string[];
-        prefixes?: string[];
-        includeNoise?: boolean;
-    }): void {
-        const X: number[][] = [], Y: number[][] = [];
+    public train(
+        augmentationOptions?: {
+            suffixes?: string[];
+            prefixes?: string[];
+            includeNoise?: boolean;
+        },
+        weights?: number[]
+    ): void {
+        const X: number[][] = [];
+        let Y: number[][] = [];
 
         this.categories.forEach((cat, i) => {
             const variants = Augment.generateVariants(cat, this.charSet, augmentationOptions);
@@ -238,9 +255,10 @@ export class ELM {
         const b = this.randomMatrix(this.hiddenUnits, 1);
         const tempH = Matrix.multiply(X, Matrix.transpose(W));
         const activationFn = Activations.get(this.activation);
-        const H = Activations.apply(tempH.map(row =>
-            row.map((val, j) => val + b[j][0])
-        ), activationFn);
+        let H = Activations.apply(
+            tempH.map(row => row.map((val, j) => val + b[j][0])),
+            activationFn
+        );
 
         if (this.dropout > 0) {
             const keepProb = 1 - this.dropout;
@@ -249,10 +267,19 @@ export class ELM {
                     if (Math.random() < this.dropout) {
                         H[i][j] = 0;
                     } else {
-                        H[i][j] /= keepProb; // Scale up to preserve expectation
+                        H[i][j] /= keepProb;
                     }
                 }
             }
+        }
+
+        if (weights) {
+            if (weights.length !== H.length) {
+                throw new Error(`Weight array length ${weights.length} does not match sample count ${H.length}`);
+            }
+            // Scale each row of H and Y by sqrt(weight)
+            H = H.map((row, i) => row.map(x => x * Math.sqrt(weights[i])));
+            Y = Y.map((row, i) => row.map(x => x * Math.sqrt(weights[i])));
         }
 
         const H_pinv = this.pseudoInverse(H);
@@ -311,7 +338,6 @@ export class ELM {
                 if (this.verbose) console.log("❌ Model not saved: One or more thresholds not met.");
             }
         } else {
-            // No metrics—always save
             this.savedModelJSON = JSON.stringify(this.model);
             if (this.verbose) console.log("✅ Model trained with no metrics—saved by default.");
             if (this.config.exportFileName) {

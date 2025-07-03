@@ -1,7 +1,7 @@
 export interface EmbeddingRecord {
     embedding: number[];
     metadata: {
-        heading: any;
+        heading?: any;
         text: string;
         label?: string;
     };

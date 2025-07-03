@@ -3,37 +3,46 @@ import { parse } from "csv-parse/sync";
 import { ELM } from "../src/core/ELM";
 import { ELMChain } from "../src/core/ELMChain";
 import { UniversalEncoder } from "../src/preprocessing/UniversalEncoder";
-import { TFIDFVectorizer } from "../src/core/TFIDF";
+import { TFIDFVectorizer } from "../src/ml/TFIDF";
 import { EmbeddingRecord } from "../src/core/EmbeddingStore";
 
-// ✅ L2 normalization helper
+// ✅ Helpers
 function l2normalize(v: number[]): number[] {
     const norm = Math.sqrt(v.reduce((s, x) => s + x * x, 0));
-    return norm === 0 ? v : v.map(x => x / norm);
+    return norm === 0 || !isFinite(norm) ? v.map(() => 0) : v.map(x => x / norm);
 }
 
 // ✅ Load corpus
 const rawText = fs.readFileSync("../public/go_textbook.md", "utf8");
 
-// ✅ Split paragraphs
-const paragraphs = rawText
-    .split(/\n{2,}/)
-    .map(p => p.trim())
-    .filter(p => p && p.length > 30);
+// ✅ Split sections (improved parsing)
+const sectionRegex = /(^#{1,6}\s+.+$)/m;
+const rawSections = rawText.split(/\n(?=#+ )/);
+const sections = rawSections
+    .map(block => {
+        const lines = block.split("\n").filter(Boolean);
+        const headingLine = lines.find(l => /^#+ /.test(l)) || "";
+        const contentLines = lines.filter(l => !/^#+ /.test(l));
+        return {
+            heading: headingLine.replace(/^#+ /, "").trim(),
+            content: contentLines.join(" ").trim()
+        };
+    })
+    .filter(s => s.content.length > 30);
 
-console.log(`✅ Parsed ${paragraphs.length} paragraphs.`);
+console.log(`✅ Parsed ${sections.length} sections.`);
 
-// ✅ Encoder
+// ✅ Encoder with token-level settings
 const encoder = new UniversalEncoder({
     maxLen: 100,
-    charSet: "abcdefghijklmnopqrstuvwxyz0123456789",
+    charSet: "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.,:;!?()[]{}<>+-=*/%\"'`_#|\\ \t",
     mode: "token",
     useTokenizer: true
 });
 
-// ✅ Encode paragraphs
-const paraVectors = paragraphs.map(p =>
-    encoder.normalize(encoder.encode(p))
+// ✅ Compute embeddings
+const paraVectors = sections.map(s =>
+    l2normalize(encoder.normalize(encoder.encode(`${s.heading} ${s.content}`)))
 );
 
 // ✅ Load supervised pairs
@@ -44,51 +53,22 @@ const supervisedPaths = [
     "../public/supervised_pairs_4.csv"
 ];
 let supervisedPairs: { query: string, target: string }[] = [];
-
 for (const path of supervisedPaths) {
     if (fs.existsSync(path)) {
         const csv = fs.readFileSync(path, "utf8");
         const rows = parse(csv, { skip_empty_lines: true });
         supervisedPairs.push(
-            ...rows.map((row: [string, string]) => ({ query: row[0].trim(), target: row[1].trim() }))
+            ...rows.map((r: [string, string]) => ({ query: r[0].trim(), target: r[1].trim() }))
         );
     }
 }
-
 console.log(`✅ Loaded ${supervisedPairs.length} supervised pairs.`);
 
+// ✅ Encode supervised
 const supQueryVecs = supervisedPairs.map(p =>
     encoder.normalize(encoder.encode(p.query))
 );
 const supTargetVecs = supervisedPairs.map(p =>
-    encoder.normalize(encoder.encode(p.target))
-);
-
-// ✅ Load negative pairs
-const negativePaths = [
-    "../public/negative_pairs.csv",
-    "../public/negative_pairs_2.csv",
-    "../public/negative_pairs_3.csv",
-    "../public/negative_pairs_4.csv"
-];
-let negativePairs: { query: string, target: string }[] = [];
-
-for (const path of negativePaths) {
-    if (fs.existsSync(path)) {
-        const csv = fs.readFileSync(path, "utf8");
-        const rows = parse(csv, { skip_empty_lines: true });
-        negativePairs.push(
-            ...rows.map((row: [string, string]) => ({ query: row[0].trim(), target: row[1].trim() }))
-        );
-    }
-}
-
-console.log(`✅ Loaded ${negativePairs.length} negative pairs.`);
-
-const negQueryVecs = negativePairs.map(p =>
-    encoder.normalize(encoder.encode(p.query))
-);
-const negTargetVecs = negativePairs.map(p =>
     encoder.normalize(encoder.encode(p.target))
 );
 
@@ -112,63 +92,19 @@ if (fs.existsSync(unsupPath)) {
     console.log(`💾 Saved Unsupervised ELM weights.`);
 }
 
-// ✅ Supervised ELM
-const supELM = new ELM({
-    activation: "relu",
-    hiddenUnits: 128,
-    maxLen: supQueryVecs[0].length,
-    categories: [],
-    log: { modelName: "SupervisedELM", verbose: true },
-    dropout: 0.02
-});
-const supPath = "./elm_weights/supervised.json";
-if (fs.existsSync(supPath)) {
-    supELM.loadModelFromJSON(fs.readFileSync(supPath, "utf-8"));
-    console.log(`✅ Loaded Supervised ELM weights.`);
-} else {
-    console.log(`⚙️ Training Supervised ELM...`);
-    supELM.trainFromData(supQueryVecs, supTargetVecs);
-    fs.writeFileSync(supPath, JSON.stringify(supELM.model));
-    console.log(`💾 Saved Supervised ELM weights.`);
-}
+// ✅ Compute unsupervised embeddings
+let embeddings = unsupELM.computeHiddenLayer(paraVectors).map(l2normalize);
 
-// ✅ Negative ELM
-const negELM = new ELM({
-    activation: "relu",
-    hiddenUnits: 128,
-    maxLen: negQueryVecs[0].length,
-    categories: [],
-    log: { modelName: "NegativeELM", verbose: true },
-    dropout: 0.02
-});
-const negPath = "./elm_weights/negative.json";
-if (fs.existsSync(negPath)) {
-    negELM.loadModelFromJSON(fs.readFileSync(negPath, "utf-8"));
-    console.log(`✅ Loaded Negative ELM weights.`);
-} else {
-    console.log(`⚙️ Training Negative ELM...`);
-    negELM.trainFromData(negQueryVecs, negTargetVecs);
-    fs.writeFileSync(negPath, JSON.stringify(negELM.model));
-    console.log(`💾 Saved Negative ELM weights.`);
-}
-
-// ✅ Compute paragraph embeddings
-const unsupEmb = unsupELM.computeHiddenLayer(paraVectors).map(l2normalize);
-
-// ✅ TFIDF vectors
+// ✅ TFIDF
 console.log(`⏳ Computing TFIDF vectors...`);
-const vectorizer = new TFIDFVectorizer(paragraphs, 3000);
+const texts = sections.map(s => `${s.heading} ${s.content}`);
+const vectorizer = new TFIDFVectorizer(texts, 3000);
 const tfidfVectors = vectorizer.vectorizeAll().map(l2normalize);
 console.log(`✅ TFIDF vectors ready.`);
 
-// ✅ Prepare final embeddings
-const combinedEmbeddings = unsupEmb; // Start with unsupEmb
-
-// ✅ ELMChain to refine
-const chainHiddenUnits = [256, 128];
-let embeddings = combinedEmbeddings;
-
-const chainELMs = chainHiddenUnits.map((h, i) =>
+// ✅ Indexer ELM chain
+const indexerDims = [256, 128];
+const chainELMs = indexerDims.map((h, i) =>
     new ELM({
         activation: "relu",
         hiddenUnits: h,
@@ -178,7 +114,6 @@ const chainELMs = chainHiddenUnits.map((h, i) =>
         dropout: 0.02
     })
 );
-
 chainELMs.forEach((elm, i) => {
     const path = `./elm_weights/indexer_layer${i}.json`;
     if (fs.existsSync(path)) {
@@ -192,43 +127,42 @@ chainELMs.forEach((elm, i) => {
     }
     embeddings = elm.computeHiddenLayer(embeddings).map(l2normalize);
 });
-
 const indexerChain = new ELMChain(chainELMs);
-console.log(`✅ Indexer chain ready.`);
 
 // ✅ Save embeddings
-const embeddingRecords: EmbeddingRecord[] = paragraphs.map((p, i) => ({
+const embeddingRecords: EmbeddingRecord[] = sections.map((s, i) => ({
     embedding: embeddings[i],
-    metadata: { text: p }
+    metadata: { heading: s.heading, text: s.content }
 }));
 fs.writeFileSync("./embeddings/embeddings.json", JSON.stringify(embeddingRecords, null, 2));
 console.log(`💾 Saved embeddings.`);
 
-// ✅ Retrieval
+// ✅ Retrieval with blended scoring
 function retrieve(query: string, topK = 5) {
-    const qVec = encoder.normalize(encoder.encode(query));
+    const qVec = l2normalize(encoder.normalize(encoder.encode(query)));
     const unsupVec = unsupELM.computeHiddenLayer([qVec])[0];
-    const supVec = supELM.computeHiddenLayer([qVec])[0];
-    const negVec = negELM.computeHiddenLayer([qVec])[0];
-
-    let combined = [
-        ...unsupVec,
-        ...supVec,
-        ...negVec.map(x => -0.5 * x)
-    ];
-    combined = l2normalize(combined);
-
-    const finalVec = indexerChain.getEmbedding([combined])[0];
+    const finalVec = indexerChain.getEmbedding([l2normalize(unsupVec)])[0];
     const tfidfQ = l2normalize(vectorizer.vectorize(query));
 
     const scored = embeddingRecords.map((r, i) => ({
-        text: r.metadata.text,
+        heading: r.metadata.heading,
+        snippet: r.metadata.text.slice(0, 100),
         dense: r.embedding.reduce((s, v, j) => s + v * finalVec[j], 0),
         tfidf: tfidfVectors[i].reduce((s, v, j) => s + v * tfidfQ[j], 0)
     }));
 
+    // 🟢 Top TFIDF sanity check
+    const tfidfRanked = [...scored]
+        .sort((a, b) => b.tfidf - a.tfidf)
+        .slice(0, 5);
+    console.log(`\n🔍 Top TFIDF results:`);
+    tfidfRanked.forEach((r, i) =>
+        console.log(`${i + 1}. (TFIDF=${r.tfidf.toFixed(4)}) ${r.heading} – ${r.snippet}...`)
+    );
+
+    // 🟢 Blended score: 50% dense + 50% TFIDF
     return scored
-        .sort((a, b) => b.dense - a.dense)
+        .sort((a, b) => (0.5 * b.dense + 0.5 * b.tfidf) - (0.5 * a.dense + 0.5 * a.tfidf))
         .slice(0, topK);
 }
 
@@ -236,8 +170,6 @@ function retrieve(query: string, topK = 5) {
 const results = retrieve("How do you declare a map in Go?");
 console.log(`\n🔍 Retrieval results:`);
 results.forEach((r, i) =>
-    console.log(
-        ` ${i + 1}. (Dense=${r.dense.toFixed(4)})\n${r.text.slice(0, 120)}...`
-    )
+    console.log(`${i + 1}. [Dense+TFIDF] ${r.heading} – ${r.snippet}...`)
 );
-console.log(`\n✅ Done.`);
+console.log(`✅ Done.`);

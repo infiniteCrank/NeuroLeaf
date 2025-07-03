@@ -3,7 +3,6 @@ import { parse } from "csv-parse/sync";
 import { ELM } from "../src/core/ELM";
 import { ELMChain } from "../src/core/ELMChain";
 import { UniversalEncoder } from "../src/preprocessing/UniversalEncoder";
-import { TFIDFVectorizer } from "../src/ml/TFIDF";
 import { EmbeddingRecord } from "../src/core/EmbeddingStore";
 
 // Helpers
@@ -38,11 +37,23 @@ function processEmbeddings(embs: number[][], label = "") {
 
 // Load corpus
 const rawText = fs.readFileSync("../public/go_textbook.md", "utf8");
-const paragraphs = rawText
-    .split(/\n{2,}/)
-    .map(p => p.trim())
+
+// Parse sections using markdown headings
+const rawSections = rawText.split(/\n(?=#+ )/);
+const paragraphs = rawSections
+    .map(block => {
+        const lines = block.split("\n").filter(Boolean);
+        const heading = lines.find(l => /^#+ /.test(l)) || "";
+        const contentLines = lines.filter(l => !/^#+ /.test(l));
+        return (
+            heading.replace(/^#+ /, "").trim() +
+            " " +
+            contentLines.join(" ").trim()
+        );
+    })
     .filter(p => p.length > 30);
-console.log(`✅ Parsed ${paragraphs.length} paragraphs.`);
+
+console.log(`✅ Parsed ${paragraphs.length} sections.`);
 
 // Encoder
 const encoder = new UniversalEncoder({

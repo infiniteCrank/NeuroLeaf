@@ -3,14 +3,13 @@ import { parse } from "csv-parse/sync";
 import { ELM } from "../src/core/ELM";
 import { ELMChain } from "../src/core/ELMChain";
 import { UniversalEncoder } from "../src/preprocessing/UniversalEncoder";
-import { TFIDFVectorizer } from "../src/core/TFIDF";
+import { TFIDFVectorizer } from "../src/ml/TFIDF";
 import { EmbeddingRecord } from "../src/core/EmbeddingStore";
 
 // Helpers
 function l2normalize(v: number[]): number[] {
     const norm = Math.sqrt(v.reduce((s, x) => s + x * x, 0));
-    if (!isFinite(norm) || norm === 0) return v.map(() => 0);
-    return v.map(x => x / norm);
+    return !isFinite(norm) || norm === 0 ? v.map(() => 0) : v.map(x => x / norm);
 }
 function averageVectors(vectors: number[][]): number[] {
     return vectors[0].map((_, i) =>
@@ -28,7 +27,6 @@ function zeroCenter(vectors: number[][]): number[][] {
 function processEmbeddings(embs: number[][], label = "") {
     const centered = zeroCenter(embs);
     const normalized = centered.map(l2normalize);
-    // Compute stats safely without .flat()
     let sum = 0, count = 0, min = Infinity, max = -Infinity;
     for (const vec of normalized) {
         for (const x of vec) {
@@ -44,11 +42,24 @@ function processEmbeddings(embs: number[][], label = "") {
 
 // Load corpus
 const rawText = fs.readFileSync("../public/go_textbook.md", "utf8");
-const paragraphs = rawText
-    .split(/\n{2,}/)
-    .map(p => p.trim())
-    .filter(p => p && p.length > 30);
-console.log(`✅ Parsed ${paragraphs.length} paragraphs.`);
+
+// Improved Markdown parser
+const rawSections = rawText.split(/\n(?=#+ )/);
+const sections = rawSections
+    .map(block => {
+        const lines = block.split("\n").filter(Boolean);
+        const headingLine = lines.find(l => /^#+ /.test(l)) || "";
+        const contentLines = lines.filter(l => !/^#+ /.test(l));
+        return {
+            heading: headingLine.replace(/^#+ /, "").trim(),
+            content: contentLines.join(" ").trim()
+        };
+    })
+    .filter(s => s.content.length > 30);
+console.log(`✅ Parsed ${sections.length} sections.`);
+
+// Use joined text
+const paragraphs = sections.map(s => `${s.heading} ${s.content}`);
 
 // Universal Encoder
 const encoder = new UniversalEncoder({
@@ -231,9 +242,9 @@ const tfidfVectors = vectorizer.vectorizeAll().map(l2normalize);
 console.log(`✅ TFIDF vectors ready.`);
 
 // Save
-const embeddingRecords: EmbeddingRecord[] = paragraphs.map((p, i) => ({
+const embeddingRecords: EmbeddingRecord[] = sections.map((s, i) => ({
     embedding: indexerInputs[i],
-    metadata: { text: p }
+    metadata: { heading: s.heading, text: s.content }
 }));
 fs.writeFileSync("./embeddings/combined_embeddings.json", JSON.stringify(embeddingRecords, null, 2));
 console.log(`💾 Saved embeddings.`);
@@ -257,17 +268,21 @@ function retrieve(query: string, topK = 5) {
     const finalVec = indexerChain.getEmbedding([combined])[0];
     const tfidfQ = l2normalize(vectorizer.vectorize(query));
 
-    const scored = embeddingRecords.map((r, i) => ({
+    const scored = embeddingRecords.map(r => ({
+        heading: r.metadata.heading,
         text: r.metadata.text,
         dense: r.embedding.reduce((s, v, j) => s + v * finalVec[j], 0),
-        tfidf: tfidfVectors[i].reduce((s, v, j) => s + v * tfidfQ[j], 0)
+        tfidf: tfidfVectors.map(t => t.reduce((s, v, j) => s + v * tfidfQ[j], 0))
     }));
-    return scored.sort((a, b) => b.dense - a.dense).slice(0, topK);
+
+    return scored
+        .sort((a, b) => b.dense - a.dense)
+        .slice(0, topK);
 }
 
 const results = retrieve("How do you declare a map in Go?");
 console.log(`\n🔍 Retrieval results:`);
 results.forEach((r, i) =>
-    console.log(`${i + 1}. (Dense=${r.dense.toFixed(4)}) ${r.text.slice(0, 100)}...`)
+    console.log(`${i + 1}. (Dense=${r.dense.toFixed(4)}) ${r.heading} – ${r.text.slice(0, 100)}...`)
 );
 console.log(`✅ Done.`);

@@ -5,16 +5,16 @@ import { tSNE } from "tsne-js";
 import { UMAP } from "umap-js";
 
 interface EmbeddingRecord {
-    embedding: number[];
-    metadata: {
-        text: string;
-        label?: string;
-    };
+  embedding: number[];
+  metadata: {
+    text: string;
+    label?: string;
+  };
 }
 
 // Load embeddings
 const data: EmbeddingRecord[] = JSON.parse(
-    fs.readFileSync("./embeddings/combined_embeddings.json", "utf8")
+  fs.readFileSync("./embeddings/embeddings.json", "utf8")
 );
 console.log(`✅ Loaded ${data.length} embeddings.`);
 
@@ -28,21 +28,21 @@ console.log(`✅ PCA completed.`);
 
 // --- t-SNE ---
 const tsne = new tSNE({
-    dim: 2,
-    perplexity: 30,
-    earlyExaggeration: 4.0,
-    learningRate: 100,
-    nIter: 500,
-    metric: "euclidean"
+  dim: 2,
+  perplexity: 30,
+  earlyExaggeration: 4.0,
+  learningRate: 100,
+  nIter: 500,
+  metric: "euclidean"
 });
 tsne.init({
-    data: vectors,
-    type: "dense"
+  data: vectors,
+  type: "dense"
 });
 console.log(`⏳ Running t-SNE...`);
 for (let k = 0; k < 500; k++) {
-    tsne.step();
-    if (k % 100 === 0) console.log(`  t-SNE iteration ${k}`);
+  tsne.step();
+  if (k % 100 === 0) console.log(`  t-SNE iteration ${k}`);
 }
 const tsneReduced = tsne.getOutputScaled();
 console.log(`✅ t-SNE completed.`);
@@ -58,26 +58,26 @@ const labels = data.map(d => d.metadata.label || "unknown");
 const uniqueLabels = Array.from(new Set(labels));
 const labelToColor: Record<string, string> = {};
 const palette = [
-    "#1f77b4", "#ff7f0e", "#2ca02c", "#d62728",
-    "#9467bd", "#8c564b", "#e377c2", "#7f7f7f",
-    "#bcbd22", "#17becf"
+  "#1f77b4", "#ff7f0e", "#2ca02c", "#d62728",
+  "#9467bd", "#8c564b", "#e377c2", "#7f7f7f",
+  "#bcbd22", "#17becf"
 ];
 uniqueLabels.forEach((label, i) => {
-    labelToColor[label] = palette[i % palette.length];
+  labelToColor[label] = palette[i % palette.length];
 });
 
 // --- Write PCA CSV ---
 const csvLines = [
-    "method,x,y,label,text",
-    ...pcaReduced.map((v, i) =>
-        `PCA,${v[0]},${v[1]},"${labels[i]}","${data[i].metadata.text.replace(/"/g, '""')}"`
-    ),
-    ...tsneReduced.map((v, i) =>
-        `t-SNE,${v[0]},${v[1]},"${labels[i]}","${data[i].metadata.text.replace(/"/g, '""')}"`
-    ),
-    ...umapReduced.map((v, i) =>
-        `UMAP,${v[0]},${v[1]},"${labels[i]}","${data[i].metadata.text.replace(/"/g, '""')}"`
-    )
+  "method,x,y,label,text",
+  ...pcaReduced.map((v, i) =>
+    `PCA,${v[0]},${v[1]},"${labels[i]}","${data[i].metadata.text.replace(/"/g, '""')}"`
+  ),
+  ...tsneReduced.map((v, i) =>
+    `t-SNE,${v[0]},${v[1]},"${labels[i]}","${data[i].metadata.text.replace(/"/g, '""')}"`
+  ),
+  ...umapReduced.map((v, i) =>
+    `UMAP,${v[0]},${v[1]},"${labels[i]}","${data[i].metadata.text.replace(/"/g, '""')}"`
+  )
 ];
 fs.writeFileSync("./embeddings_projection.csv", csvLines.join("\n"));
 console.log(`💾 Saved CSV to embeddings_projection.csv.`);

@@ -4,6 +4,7 @@ import { ELMChain } from "../src/core/ELMChain";
 import { EmbeddingRecord } from "../src/core/EmbeddingStore";
 import { UniversalEncoder } from "../src/preprocessing/UniversalEncoder";
 
+// Helpers
 function l2normalize(v: number[]): number[] {
     const norm = Math.sqrt(v.reduce((s, x) => s + x * x, 0));
     return norm === 0 ? v : v.map(x => x / norm);
@@ -27,15 +28,23 @@ function averageVectors(vectors: number[][]): number[] {
 // 1️⃣ Load corpus
 const rawText = fs.readFileSync("../public/go_textbook.md", "utf8");
 
-// 2️⃣ Split into paragraphs
-const paragraphs = rawText
-    .split(/\n{2,}/)
-    .map(p => p.trim())
-    .filter(p => p && p.length > 30);
+// 2️⃣ Parse sections by headings
+const rawSections = rawText.split(/\n(?=#+ )/);
+const sections = rawSections
+    .map(block => {
+        const lines = block.split("\n").filter(Boolean);
+        const headingLine = lines.find(l => /^#+ /.test(l)) || "";
+        const contentLines = lines.filter(l => !/^#+ /.test(l));
+        return {
+            heading: headingLine.replace(/^#+ /, "").trim(),
+            content: contentLines.join(" ").trim()
+        };
+    })
+    .filter(s => s.content.length > 30);
 
-console.log(`✅ Parsed ${paragraphs.length} paragraphs.`);
+console.log(`✅ Parsed ${sections.length} sections.`);
 
-// 3️⃣ Create UniversalEncoder
+// 3️⃣ UniversalEncoder
 const encoder = new UniversalEncoder({
     maxLen: 100,
     charSet: "abcdefghijklmnopqrstuvwxyz0123456789",
@@ -43,26 +52,24 @@ const encoder = new UniversalEncoder({
     useTokenizer: true
 });
 
-// Word-level embeddings
-const wordVectors = paragraphs.map(p => {
-    const tokens = p.split(/\s+/).filter(Boolean);
+// 4️⃣ Embeddings
+const wordVectors = sections.map(s => {
+    const tokens = s.content.split(/\s+/).filter(Boolean);
     return l2normalize(averageVectors(tokens.map(t => encoder.normalize(encoder.encode(t)))));
 });
 
-// Sentence-level embeddings
-const sentenceVectors = paragraphs.map(p => {
-    const sentences = p.split(/[.?!]\s+/).filter(s => s.length > 3);
-    return l2normalize(averageVectors(sentences.map(s => encoder.normalize(encoder.encode(s)))));
+const sentenceVectors = sections.map(s => {
+    const sentences = s.content.split(/[.?!]\s+/).filter(sen => sen.length > 3);
+    return l2normalize(averageVectors(sentences.map(sen => encoder.normalize(encoder.encode(sen)))));
 });
 
-// Paragraph-level embeddings
-const paragraphVectors = paragraphs.map(p =>
-    l2normalize(encoder.normalize(encoder.encode(p)))
+const paragraphVectors = sections.map(s =>
+    l2normalize(encoder.normalize(encoder.encode(s.content)))
 );
 
 console.log(`✅ Prepared all input embeddings.`);
 
-// 4️⃣ Train/load helper
+// 5️⃣ Train/load ELMs
 function trainOrLoadELM(name: string, inputDim: number, vectors: number[][], hiddenUnits: number) {
     const elm = new ELM({
         activation: "relu",
@@ -89,7 +96,6 @@ function trainOrLoadELM(name: string, inputDim: number, vectors: number[][], hid
     return elm;
 }
 
-// 5️⃣ Train/load ELMs
 const wordELM = trainOrLoadELM("word_encoder", wordVectors[0].length, wordVectors, 64);
 const sentenceELM = trainOrLoadELM("sentence_encoder", sentenceVectors[0].length, sentenceVectors, 64);
 const paragraphELM = trainOrLoadELM("paragraph_encoder", paragraphVectors[0].length, paragraphVectors, 128);
@@ -99,7 +105,7 @@ const wordEmb = wordELM.computeHiddenLayer(wordVectors);
 const sentenceEmb = sentenceELM.computeHiddenLayer(sentenceVectors);
 const paragraphEmb = paragraphELM.computeHiddenLayer(paragraphVectors);
 
-// 7️⃣ Zero-center then L2-normalize each embedding
+// 7️⃣ Zero-center + L2 normalize
 function processEmbeddings(embs: number[][]) {
     const centered = zeroCenter(embs);
     return centered.map(l2normalize);
@@ -108,7 +114,7 @@ const wordProcessed = processEmbeddings(wordEmb);
 const sentProcessed = processEmbeddings(sentenceEmb);
 const paraProcessed = processEmbeddings(paragraphEmb);
 
-// 8️⃣ Concatenate
+// 8️⃣ Combine
 const combinedEmbeddings = wordProcessed.map((_, i) =>
     l2normalize([
         ...wordProcessed[i],
@@ -119,7 +125,7 @@ const combinedEmbeddings = wordProcessed.map((_, i) =>
 
 console.log(`✅ Combined embeddings.`);
 
-// 9️⃣ Train indexer chain
+// 9️⃣ Indexer chain
 const hiddenUnitSequence = [256, 128];
 let embeddings = combinedEmbeddings;
 
@@ -130,7 +136,7 @@ const indexerELMs = hiddenUnitSequence.map((h, i) =>
         maxLen: embeddings[0].length,
         categories: [],
         log: { modelName: `IndexerELM_${i}`, verbose: true },
-        dropout: 0.1 // 💡 Slightly higher dropout to improve variance
+        dropout: 0.1
     })
 );
 
@@ -154,10 +160,10 @@ indexerELMs.forEach((elm, i) => {
 const indexerChain = new ELMChain(indexerELMs);
 console.log(`✅ Indexer ELM chain ready.`);
 
-// 🔟 Save final embeddings
-const embeddingRecords: EmbeddingRecord[] = paragraphs.map((p, i) => ({
+// 🔟 Save
+const embeddingRecords: EmbeddingRecord[] = sections.map((s, i) => ({
     embedding: embeddings[i],
-    metadata: { text: p }
+    metadata: { heading: s.heading, text: s.content }
 }));
 fs.mkdirSync("./embeddings", { recursive: true });
 fs.writeFileSync("./embeddings/combined_embeddings.json", JSON.stringify(embeddingRecords, null, 2));
@@ -183,7 +189,8 @@ function retrieve(query: string, topK = 5) {
     const finalVec = indexerChain.getEmbedding([combined])[0];
 
     const scored = embeddingRecords.map(r => ({
-        text: r.metadata.text,
+        heading: r.metadata.heading,
+        snippet: r.metadata.text.slice(0, 100),
         score: r.embedding.reduce((s, v, i) => s + v * finalVec[i], 0)
     }));
 
@@ -193,7 +200,7 @@ function retrieve(query: string, topK = 5) {
 const results = retrieve("How do you declare a map in Go?");
 console.log(`\n🔍 Retrieval results:`);
 results.forEach((r, i) =>
-    console.log(` ${i + 1}. (${r.score.toFixed(4)}) ${r.text.slice(0, 80)}...`)
+    console.log(`${i + 1}. (${r.score.toFixed(4)}) ${r.heading} – ${r.snippet}...`)
 );
 
 console.log(`\n✅ Done.`);

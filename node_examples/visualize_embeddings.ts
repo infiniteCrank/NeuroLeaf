@@ -12,7 +12,7 @@ interface EmbeddingRecord {
 
 // Load embeddings
 const data: EmbeddingRecord[] = JSON.parse(
-  fs.readFileSync("./embeddings/combined_embeddings.json", "utf8")
+  fs.readFileSync("./embeddings/embeddings.json", "utf8")
 );
 console.log(`✅ Loaded ${data.length} embeddings.`);
 

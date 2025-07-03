@@ -391,6 +391,61 @@ const schema = IO.inferSchemaFromCSV("text,label\nhi,hello");
 ```
 
 **Tip:** In practice, importing and exporting **JSON** has been the most reliable and thoroughly tested method. If possible, prefer using `importJSON()` and `exportJSON()` over CSV or TSV.
+## 🧪 Example Demos and Scripts
+
+AsterMind includes multiple demo scripts you can launch via `npm run` commands:
+
+* `dev:autocomplete`: Starts the autocomplete demo.
+* `dev:lang`: Starts the language classification demo.
+* `dev:chain`: Runs a pipeline chaining autocomplete and language classifier.
+* `dev:chain2`: Adds an encoder to the chain.
+* `dev:chain3`: Chains encoder and feature combiner.
+* `dev:chain4`: Adds a voting classifier to combine predictions.
+* `dev:chain5`: Chains models and demonstrates saving trained weights.
+
+**How to Run:**
+
+```bash
+npm install
+npm run dev:autocomplete
+```
+
+**What You'll See:**
+
+* A browser window with a live demo interface.
+* Input box for typing test queries.
+* Real-time predictions and confidence bars.
+
+**Note:**
+
+These demos are fully in-browser and do not require any backend. Each script sets `DEMO` to load a different HTML+JavaScript pipeline.
+
+## 🧪 Experiments and Results
+
+AsterMind has been tested with a variety of automated experiments, including:
+
+* **Dropout Tuning Experiments:** Scripts testing different dropout rates and activation functions.
+* **Hybrid Retrieval Pipelines:** Combining dense embeddings and TFIDF.
+* **Ensemble Knowledge Distillation:** Training ELMs to mimic ensembles.
+* **Multi-Level Pipelines:** Chaining autocomplete, encoder, and classifier modules.
+
+**Example Scripts:**
+
+* `automated_experiment_dropout_fixedactivation.ts`
+* `hybrid_retrieval.ts`
+* `elm_ensemble_knowledge_distillation.ts`
+* `train_hybrid_multilevel_pipeline.ts`
+* `train_multi_encoder.ts`: Run with `npx ts-node train_multi_encoder.ts`
+* `train_weighted_hybrid_multilevel_pipeline.ts`: Run with `npx ts-node train_weighted_hybrid_multilevel_pipeline.ts`
+
+**Results Summary:**
+
+| Experiment               | Dropout | Activation | Recall\@1 | Recall\@5 | MRR  |
+| ------------------------ | ------- | ---------- | --------- | --------- | ---- |
+| Dropout Fixed Activation | 0.05    | relu       | 0.42      | 0.75      | 0.61 |
+| Hybrid Random Target     | 0.02    | tanh       | 0.46      | 0.78      | 0.65 |
+
+**Note:** These results were exported from CSV logs and can be reproduced with the provided scripts.
 
 ### TFIDFVectorizer Class
 

@@ -1,1394 +1,1112 @@
 x,y,text
-0.05606386621168755,0.06987567417472147,"# Learn Go in 16 Weeks: From No Programming Experience to Junior Go Developer"
-0.04031121662681208,-0.07801776597923689,"Welcome to *Learn Go in 16 Weeks*! This textbook is designed to take students with no prior programming experience through fundamental programming concepts and then guide them in learning Go—from writing their very first program to building full-scale projects as a junior developer. The first 4 weeks cover general programming basics, and the following 12 weeks dive deep into Go programming."
-0.016238065394056533,-0.03989703618035751,"- [Week 1: Introduction to Computers and Programming Concepts](#week-1-introduction-to-computers-and-programming-concepts)
-  - [Day 1: What is a Computer Program?](#day-1-what-is-a-computer-program)
-  - [Day 2: Overview of Programming Languages and Tools](#day-2-overview-of-programming-languages-and-tools)
-  - [Day 3: The Development Process & Pseudocode](#day-3-the-development-process--pseudocode)
-  - [Day 4: Introduction to Variables and Data Types](#day-4-introduction-to-variables-and-data-types)
-  - [Day 5: Review and Exercises](#day-5-review-and-exercises)
-- [Week 2: Basic Programming Constructs](#week-2-basic-programming-constructs)
-  - [Day 1: Understanding Variables and Operators](#day-1-understanding-variables-and-operators)
-  - [Day 2: Control Flow with Conditionals](#day-2-control-flow-with-conditionals)
-  - [Day 3: Loops and Iteration Concepts](#day-3-loops-and-iteration-concepts)
-  - [Day 4: Basic Input/Output Concepts](#day-4-basic-inputoutput-concepts)
-  - [Day 5: Mini Project & Review](#day-5-mini-project--review)
-- [Week 3: Functions and Modularity](#week-3-functions-and-modularity)
-  - [Day 1: What Are Functions and Why Use Them?](#day-1-what-are-functions-and-why-use-them)
-  - [Day 2: Defining and Calling Functions](#day-2-defining-and-calling-functions)
-  - [Day 3: Function Parameters and Return Values](#day-3-function-parameters-and-return-values)
-  - [Day 4: Introduction to Debugging and Error Checking](#day-4-introduction-to-debugging-and-error-checking)
-  - [Day 5: Review and a Simple Functions Project](#day-5-review-and-a-simple-functions-project)
-- [Week 4: Data Structures and Problem Solving](#week-4-data-structures-and-problem-solving)
-  - [Day 1: Arrays and Lists – Concepts and Uses](#day-1-arrays-and-lists--concepts-and-uses)
-  - [Day 2: Working with Strings](#day-2-working-with-strings)
-  - [Day 3: Introduction to Key-Value Stores (Maps/Dictionaries)](#day-3-introduction-to-key-value-stores-mapsdictionaries)
-  - [Day 4: Basic Algorithms – Searching and Sorting](#day-4-basic-algorithms--searching-and-sorting)
-  - [Day 5: Mini Project and Review](#day-5-mini-project-and-review)
-- [Week 5: Introduction to Go and Setup](#week-5-introduction-to-go-and-setup)
-  - [Day 1: Introduction to Go](#day-1-introduction-to-go)
-  - [Day 2: Installation and Setup](#day-2-installation-and-setup)
-  - [Day 3: Your First Go Program](#day-3-your-first-go-program)
-  - [Day 4: Basic Syntax and Code Structure](#day-4-basic-syntax-and-code-structure)
-  - [Day 5: Exercises and Review](#day-5-exercises-and-review)
-- [Week 6: Go Basics and Syntax](#week-6-go-basics-and-syntax)
-  - [Day 1: Variables and Constants](#day-1-variables-and-constants)
-  - [Day 2: Data Types](#day-2-data-types)
-  - [Day 3: Basic Operators](#day-3-basic-operators)
-  - [Day 4: Basic Input/Output](#day-4-basic-inputoutput)
-  - [Day 5: Mini Project & Review](#day-5-mini-project--review)
-- [Week 7: Control Structures and Basic Data Types](#week-7-control-structures-and-basic-data-types)
-  - [Day 1: If-Else Statements](#day-1-if-else-statements)
-  - [Day 2: Switch Statements](#day-2-switch-statements)
-  - [Day 3: For Loops (Part 1)](#day-3-for-loops-part-1)
-  - [Day 4: For Loops (Part 2) and Ranges](#day-4-for-loops-part-2-and-ranges)
-  - [Day 5: Arrays and Strings](#day-5-arrays-and-strings)
-- [Week 8: Functions, Error Handling, and Packages](#week-8-functions-error-handling-and-packages)
-  - [Day 1: Functions Basics](#day-1-functions-basics)
-  - [Day 2: Advanced Functions](#day-2-advanced-functions)
-  - [Day 3: Error Handling](#day-3-error-handling)
-  - [Day 4: Using Standard Library Packages](#day-4-using-standard-library-packages)
-  - [Day 5: Building and Organizing Code](#day-5-building-and-organizing-code)
-- [Week 9: Arrays, Slices, and Maps](#week-9-arrays-slices-and-maps)
-  - [Day 1: Arrays](#day-1-arrays)
-  - [Day 2: Slices](#day-2-slices)
-  - [Day 3: Slice Operations](#day-3-slice-operations)
-  - [Day 4: Maps](#day-4-maps)
-  - [Day 5: Review and Mini Project](#day-5-review-and-mini-project)
-- [Week 10: Pointers, Memory, and Interfaces](#week-10-pointers-memory-and-interfaces)
-  - [Day 1: Pointers Basics](#day-1-pointers-basics)
-  - [Day 2: Pointers in Functions](#day-2-pointers-in-functions)
-  - [Day 3: Introduction to Memory Management](#day-3-introduction-to-memory-management)
-  - [Day 4: Interfaces Basics](#day-4-interfaces-basics)
-  - [Day 5: Interfaces in Depth](#day-5-interfaces-in-depth)
-- [Week 11: Structs and Methods](#week-11-structs-and-methods)
-  - [Day 1: Introduction to Structs](#day-1-introduction-to-structs)
-  - [Day 2: Methods on Structs](#day-2-methods-on-structs)
-  - [Day 3: Struct Composition](#day-3-struct-composition)
-  - [Day 4: Constructors and Initialization](#day-4-constructors-and-initialization)
-  - [Day 5: Review and Mini Project](#day-5-review-and-mini-project)
-- [Week 12: Concurrency in Go](#week-12-concurrency-in-go)
-  - [Day 1: Introduction to Concurrency](#day-1-introduction-to-concurrency)
-  - [Day 2: Goroutines in Depth](#day-2-goroutines-in-depth)
-  - [Day 3: Channels Basics](#day-3-channels-basics)
-  - [Day 4: Select Statement](#day-4-select-statement)
-  - [Day 5: Concurrency Patterns and Review](#day-5-concurrency-patterns-and-review)
-- [Week 13: Working with Files, Networking, and the Web](#week-13-working-with-files-networking-and-the-web)
-  - [Day 1: File I/O Basics](#day-1-file-io-basics)
-  - [Day 2: More on File I/O](#day-2-more-on-file-io)
-  - [Day 3: Introduction to HTTP Servers](#day-3-introduction-to-http-servers)
-  - [Day 4: HTTP Clients](#day-4-http-clients)
-  - [Day 5: JSON Handling](#day-5-json-handling)
-- [Week 14: Testing, Debugging, and Best Practices](#week-14-testing-debugging-and-best-practices)
-  - [Day 1: Introduction to Testing](#day-1-introduction-to-testing)
-  - [Day 2: Writing More Tests](#day-2-writing-more-tests)
-  - [Day 3: Benchmarking](#day-3-benchmarking)
-  - [Day 4: Debugging Techniques](#day-4-debugging-techniques)
-  - [Day 5: Best Practices and Code Reviews](#day-5-best-practices-and-code-reviews)
-- [Week 15: Building CLI and Web Applications](#week-15-building-cli-and-web-applications)
-  - [Day 1: Introduction to CLI Applications](#day-1-introduction-to-cli-applications)
-  - [Day 2: Advanced CLI Applications](#day-2-advanced-cli-applications)
-  - [Day 3: Introduction to Web Applications](#day-3-introduction-to-web-applications)
-  - [Day 4: Web Frameworks Overview](#day-4-web-frameworks-overview)
-  - [Day 5: Deployment and Project Structure](#day-5-deployment-and-project-structure)
-- [Week 16: Final Project and Career Development](#week-16-final-project-and-career-development)
-  - [Day 1: Final Project Kick-off](#day-1-final-project-kick-off)
-  - [Day 2: Building the Core Functionality](#day-2-building-the-core-functionality)
-  - [Day 3: Expanding the Project](#day-3-expanding-the-project)
-  - [Day 4: Testing and Debugging the Final Project](#day-4-testing-and-debugging-the-final-project)
-  - [Day 5: Final Review, Code Cleanup, and Career Prep](#day-5-final-review-code-cleanup-and-career-prep)"
-0.016839996572718334,-0.05814963092015262,"## ||| Week 1: Introduction to Computers and Programming Concepts"
-0.11461378722206321,0.015413585190503083,"### Day 1: What is a Computer Program?
+0.00212987273279985,0.15351628969255915,"# Learn Go in 16 Weeks: From No Programming Experience to Junior Go Developer"
+0.11443418676377189,0.01864968160108897,"Welcome to *Learn Go in 16 Weeks*! This textbook is designed to take students with no prior programm"
+0.12915885745910438,-0.25805909023642315,"- [Week 1: Introduction to Computers and Programming Concepts](#week-1-introduction-to-computers-and"
+-0.060367978570105514,0.03141821623579849,"## ||| Week 1: Introduction to Computers and Programming Concepts"
+0.1892794316601927,-0.04978267776470293,"### Day 1: What is a Computer Program?
 **Objectives:**
 - Define what a computer program is.
-- Understand the evolution of programming."
-0.04227838414220882,0.07262239849692441,"**Topics:**
+- Unders"
+0.05021252271585777,0.013559573784589921,"**Topics:**
 - History of computing.
 - Basic concepts behind instructions and algorithms."
-0.06635435123518842,0.04651331433077264,"**Exercises:**
+0.018871533425397637,0.0860091675751716,"**Exercises:**
 - Write a short paragraph on what you think a computer program does."
-0.08700762694949969,-0.04859488746514483,"### Day 2: Overview of Programming Languages and Tools
+-0.03175428893308695,-0.08621345275748524,"### Day 2: Overview of Programming Languages and Tools
 **Objectives:**
-- Learn the difference between programming languages.
-- Understand the roles of compilers and interpreters."
-0.06895152057954389,-0.03430518514102229,"**Topics:**
+- Learn the difference betwee"
+0.1785012877294173,-0.007490472610931536,"**Topics:**
 - Examples of popular programming languages.
-- Introduction to development tools and environments."
--0.015632922731425865,0.005241956772121284,"**Exercises:**
+- Introduction to development tools and env"
+0.08996927449076335,0.17922557224439092,"**Exercises:**
 - Research one programming language other than Go and list its strengths."
-0.07920067400693365,-0.01872900475094867,"### Day 3: The Development Process & Pseudocode
+0.01965388731549686,-0.051173344382450685,"### Day 3: The Development Process & Pseudocode
 **Objectives:**
-- Understand the stages of software development.
-- Learn to write pseudocode to plan algorithms."
-0.0662680834092732,-0.04474789640691932,"**Topics:**
+- Understand the stages of software "
+0.07827351043424444,0.07072312390235473,"**Topics:**
 - Requirements, design, coding, testing, and maintenance.
-- Practice writing pseudocode for simple tasks."
-0.0623469390677591,0.026644702457391485,"**Exercises:**
+- Practice writing pseudocode "
+0.14117793078250807,0.10840771227118166,"**Exercises:**
 - Write pseudocode for a program that calculates the sum of two numbers."
-0.009380349468647,-0.05715091411115029,"### Day 4: Introduction to Variables and Data Types
+0.1906891611048891,0.09038322260953986,"### Day 4: Introduction to Variables and Data Types
 **Objectives:**
-- Learn what variables and data types are.
-- Understand how data is stored and manipulated."
--0.05195137883552161,0.04209779364369624,"**Code Example (in Go for consistency):**
+- Learn what variables and data "
+-0.13062154580362362,0.049625260890195304,"**Code Example (in Go for consistency):**
 ```go
 package main"
-0.0021050246181741716,0.031160687480053406,"func main() {
+0.09098794157564033,-0.26025065645629153,"func main() {
     var number int = 10
     var message string = ""Hello, World!""
-    fmt.Println(number, message)
-}
-```"
-0.07648383493077217,0.021290033975285692,"**Exercises:**
+    fmt.Println(numbe"
+0.1387452580455468,0.23199182677999713,"**Exercises:**
 - List three different data types and give an example of each."
-0.06934959657378097,0.0033369256287661777,"### Day 5: Review and Exercises
+0.2339251395442579,-0.1459567727434479,"### Day 5: Review and Exercises
 **Objectives:**
 - Reinforce the concepts learned during the week."
-0.1344200202973476,0.008108370146566804,"**Exercises:**
+0.2451222319953894,0.15447706607072526,"**Exercises:**
 - Create a simple pseudocode plan for a calculator.
-- Write a few lines of Go code to declare variables of different types."
-0.010247765449131972,-0.18040663357386544,"## ||| Week 2: Basic Programming Constructs"
--0.010819708065148478,0.01597445945873907,"### Day 1: Understanding Variables and Operators
+- Write a few lines of Go code to"
+-0.06798714965183067,0.01828814752051061,"## ||| Week 2: Basic Programming Constructs"
+0.10195330789286575,-0.14353202014603847,"### Day 1: Understanding Variables and Operators
 **Objectives:**
 - Learn how variables store data.
-- Understand arithmetic and assignment operators."
--0.2100342294923103,0.005028327470510135,"**Code Example:**
+-"
+-0.34251248025431325,-0.08675601936374068,"**Code Example:**
 ```go
 package main"
-0.02032891819537649,-0.017755277329802917,"func main() {
+0.0035728923978304555,-0.0427167251500344,"func main() {
     x := 5
     y := 3
     sum := x + y
     fmt.Println(""Sum:"", sum)
 }
 ```"
-0.10372040036503345,0.09606302013138267,"**Exercises:**
+0.019540561722832736,0.16096564077444037,"**Exercises:**
 - Write a program that subtracts two numbers and prints the result."
-0.02989665249973758,0.035450701663295545,"### Day 2: Control Flow with Conditionals
+0.16512888988487745,-0.08207910407372622,"### Day 2: Control Flow with Conditionals
 **Objectives:**
 - Understand if-else constructs.
-- Learn to make decisions based on conditions."
-0.013754636537515554,-0.009387450290283065,"**Code Example (pseudocode/Go blend):**
+- Learn t"
+-0.12565857048860493,-0.01202003294375425,"**Code Example (pseudocode/Go blend):**
 ```go
 package main"
-0.043236531144911036,-0.0332958134345414,"func main() {
+0.06489924624516155,-0.03521339460472742,"func main() {
     score := 85
     if score >= 60 {
         fmt.Println(""Pass"")
     } else {
-        fmt.Println(""Fail"")
-    }
-}
-```"
-0.10500972979564213,-0.024566913281762224,"**Exercises:**
-- Write pseudocode for a program that outputs ""Good"" if a number is positive, ""Bad"" if negative, and ""Zero"" if zero."
-0.10719402183340729,-0.08527735725606692,"### Day 3: Loops and Iteration Concepts
+        "
+0.18972010843457845,0.11364129637376212,"**Exercises:**
+- Write pseudocode for a program that outputs ""Good"" if a number is positive, ""Bad"" i"
+0.15857835855361802,-0.013764301482485957,"### Day 3: Loops and Iteration Concepts
 **Objectives:**
 - Understand why loops are used.
-- Learn the concept of iterating over a set of values."
--0.2100342294923103,0.005028327470510135,"**Code Example:**
+- Learn the"
+-0.34251248025431325,-0.08675601936374068,"**Code Example:**
 ```go
 package main"
-0.04037813295668335,-0.029166839915702233,"func main() {
+0.03399587863424458,0.03692886025418692,"func main() {
     for i := 1; i <= 5; i++ {
         fmt.Println(""Iteration"", i)
     }
 }
 ```"
-0.08008109144916946,0.030739826613610927,"**Exercises:**
+-0.08471050472640343,0.25960426083266575,"**Exercises:**
 - Write a loop that prints the numbers 1 to 10."
-0.09485512695178157,-0.134956632359821,"### Day 4: Basic Input/Output Concepts
+0.2117607030260164,-0.11070488125278907,"### Day 4: Basic Input/Output Concepts
 **Objectives:**
-- Learn the idea of getting input from users and displaying output."
--0.2100342294923103,0.005028327470510135,"**Code Example:**
+- Learn the idea of getting input from users "
+-0.34251248025431325,-0.08675601936374068,"**Code Example:**
 ```go
 package main"
-0.05860622735871388,-0.12125304595114661,"func main() {
+0.16054415121930532,-0.017723047018661568,"func main() {
     var name string
     fmt.Print(""Enter your name: "")
     fmt.Scan(&name)
-    fmt.Println(""Hello,"", name)
-}
-```"
-0.10875994642573429,0.09017097550087452,"**Exercises:**
+    fmt.Pri"
+0.1379911963099551,0.2638265727155439,"**Exercises:**
 - Modify the example to also ask for the user’s age and print both values."
-0.03874694150465893,-0.0696091072714617,"### Day 5: Mini Project & Review
+0.17053311818194766,-0.016814023592734418,"### Day 5: Mini Project & Review
 **Objectives:**
-- Combine concepts from the week in a small project."
-0.03774345464998533,0.010580035382100205,"**Project Example:**
+- Combine concepts from the week in a small project"
+0.14607583121266146,0.0023203826253381755,"**Project Example:**
 - Create a simple calculator that adds two numbers entered by the user."
-0.057028293507764255,0.0068584833640983524,"**Exercises:**
+-0.080144801957068,0.2502205677921497,"**Exercises:**
 - Write the complete program and test it."
-0.004985553782384104,-0.1115646211692931,"## ||| Week 3: Functions and Modularity"
--0.02323825282132974,0.012795469306008429,"### Day 1: What Are Functions and Why Use Them?
+-0.1411933681717061,-0.0051515658229462965,"## ||| Week 3: Functions and Modularity"
+0.1468697378771586,-0.10683074147036511,"### Day 1: What Are Functions and Why Use Them?
 **Objectives:**
-- Understand the purpose of functions.
-- Learn about code reusability."
-0.08627845611087279,0.12425919118672352,"**Topics:**
+- Understand the purpose of function"
+-0.11670115243346209,0.12153936031471205,"**Topics:**
 - Definition and benefits of functions.
 - Real-world examples."
-0.08590686427796466,0.13790882954502415,"**Exercises:**
+0.0005397300919748362,0.08454987858661359,"**Exercises:**
 - Write down a scenario where breaking code into functions is helpful."
-0.12976169541630392,0.12235216208825313,"### Day 2: Defining and Calling Functions
+0.038646709151609476,-0.10628336573382977,"### Day 2: Defining and Calling Functions
 **Objectives:**
-- Learn the syntax for defining functions in Go.
-- Understand how to call a function."
--0.2100342294923103,0.005028327470510135,"**Code Example:**
+- Learn the syntax for defining functions "
+-0.34251248025431325,-0.08675601936374068,"**Code Example:**
 ```go
 package main"
-0.06471808906721145,-0.10502416749912075,"func greet() {
+-0.1838942334652505,0.04929489950516098,"func greet() {
     fmt.Println(""Hello!"")
 }"
--0.0001941068704203056,-0.067830379314486,"func main() {
+-0.24940651444313142,0.03649902124081335,"func main() {
     greet()
 }
 ```"
-0.07983928803908391,0.01535923678383537,"**Exercises:**
+0.23942984399256242,0.04516632310400798,"**Exercises:**
 - Define a function that prints ""Welcome to programming!"" and call it from `main`."
--0.002120111919742723,0.004630006379248206,"### Day 3: Function Parameters and Return Values
+0.10495665465970865,-0.060343715343475456,"### Day 3: Function Parameters and Return Values
 **Objectives:**
-- Understand how to pass values to functions and return results."
--0.2100342294923103,0.005028327470510135,"**Code Example:**
+- Understand how to pass values to "
+-0.34251248025431325,-0.08675601936374068,"**Code Example:**
 ```go
 package main"
-0.02312697062152566,-0.009519483239575794,"func add(a int, b int) int {
+-0.21886535194309953,0.040056580099038785,"func add(a int, b int) int {
     return a + b
 }"
-0.06511641397874449,-0.08430634283056622,"func main() {
+-0.10848627536404586,-0.06852965384253298,"func main() {
     result := add(3, 4)
     fmt.Println(""Result:"", result)
 }
 ```"
-0.029283783937268288,0.11832607322220039,"**Exercises:**
+0.06222021829793223,0.25584610209082526,"**Exercises:**
 - Write a function that multiplies two numbers and returns the product."
-0.07345179950600501,-0.05208067137260847,"### Day 4: Introduction to Debugging and Error Checking
+0.16462942143358067,0.06492887818330688,"### Day 4: Introduction to Debugging and Error Checking
 **Objectives:**
-- Learn simple debugging techniques.
-- Understand the importance of error checking."
--0.2100342294923103,0.005028327470510135,"**Code Example:**
+- Learn simple debugging tec"
+-0.34251248025431325,-0.08675601936374068,"**Code Example:**
 ```go
 package main"
-0.12283902405307968,-0.09564202728180188,"func safeDivide(a, b float64) float64 {
+-0.049280628551297626,-0.19088283944764473,"func safeDivide(a, b float64) float64 {
     if b == 0 {
         log.Println(""Division by zero!"")
-        return 0
-    }
-    return a / b
-}"
--0.003132498481617837,0.0013908478943217316,"func main() {
+   "
+-0.06751726644799413,0.06517780562382189,"func main() {
     fmt.Println(""Division result:"", safeDivide(10, 0))
 }
 ```"
-0.09677428782797025,0.05816813801725916,"**Exercises:**
+-0.07200138747143246,0.250340289928569,"**Exercises:**
 - Add error checking to one of your previous functions."
-0.10256842433361678,-0.05586267650859947,"### Day 5: Review and a Simple Functions Project
+0.24228799934463147,-0.12359838856583058,"### Day 5: Review and a Simple Functions Project
 **Objectives:**
-- Reinforce function concepts by building a small project."
-0.05377682491915179,0.00838251027182824,"**Project Example:**
-- Create a program that calculates the area and perimeter of a rectangle using functions."
-0.049457510910648546,0.061492804386160414,"**Exercises:**
+- Reinforce function concepts by bu"
+0.2090075135786596,0.015134913957071783,"**Project Example:**
+- Create a program that calculates the area and perimeter of a rectangle using "
+-0.1388385480864299,0.23292382894836977,"**Exercises:**
 - Write and test the program."
--0.0006492950296590595,-0.12308893368857911,"## ||| Week 4: Data Structures and Problem Solving"
-0.11499925832518391,0.04450435181562661,"### Day 1: Arrays and Lists – Concepts and Uses
+0.01571173613970321,-0.02837484902732868,"## ||| Week 4: Data Structures and Problem Solving"
+0.1472719975828582,-0.09193817923623814,"### Day 1: Arrays and Lists – Concepts and Uses
 **Objectives:**
-- Learn what arrays (and lists) are.
-- Understand how data can be stored in sequences."
--0.2100342294923103,0.005028327470510135,"**Code Example:**
+- Learn what arrays (and lists) are."
+-0.34251248025431325,-0.08675601936374068,"**Code Example:**
 ```go
 package main"
-0.0037938855872698967,-0.038890452158175055,"func main() {
+0.13148725892852609,-0.13403261471863878,"func main() {
     numbers := [5]int{1, 2, 3, 4, 5}
     fmt.Println(""Array:"", numbers)
 }
 ```"
-0.042991886192632014,-0.02966023347418015,"**Exercises:**
+0.03364458418567907,0.2971598525001634,"**Exercises:**
 - Declare an array of 5 integers and print each element."
-0.027238929086357888,0.01925381266670767,"### Day 2: Working with Strings
+0.17028135860286045,-0.15439897825183094,"### Day 2: Working with Strings
 **Objectives:**
 - Understand string manipulation.
-- Learn basic operations on strings."
--0.2100342294923103,0.005028327470510135,"**Code Example:**
+- Learn basic oper"
+-0.34251248025431325,-0.08675601936374068,"**Code Example:**
 ```go
 package main"
-0.06447451073582361,-0.012106340975010265,"func main() {
+0.11713968014411308,-0.11903892057691404,"func main() {
     text := ""Programming is fun!""
     fmt.Println(""Text length:"", len(text))
 }
 ```"
-0.08403785148004313,0.07432038454928398,"**Exercises:**
+-0.04336004464162459,0.3154803375721725,"**Exercises:**
 - Write a program to iterate over each character in a string and print it."
-0.08069655855617061,0.040115779186603154,"### Day 3: Introduction to Key-Value Stores (Maps/Dictionaries)
+0.2827505084335444,-0.1535145100924023,"### Day 3: Introduction to Key-Value Stores (Maps/Dictionaries)
 **Objectives:**
-- Learn the concept of maps/dictionaries.
-- Understand how data is stored using key-value pairs."
--0.2100342294923103,0.005028327470510135,"**Code Example:**
+- Learn the concept "
+-0.34251248025431325,-0.08675601936374068,"**Code Example:**
 ```go
 package main"
-0.09067169340890562,0.006831694685514257,"func main() {
+0.13657143995441115,-0.06119567037343901,"func main() {
     ages := map[string]int{
         ""Alice"": 30,
         ""Bob"":   25,
     }
-    fmt.Println(""Ages:"", ages)
-}
-```"
-0.11347235879373208,-0.011694164121284831,"**Exercises:**
+    fmt.Pr"
+0.019422779909143643,0.1449744485005947,"**Exercises:**
 - Create a map of three items and print the keys and values."
-0.03774578918060976,-0.035317407153853765,"### Day 4: Basic Algorithms – Searching and Sorting
+0.11848477410138383,0.06618201759863306,"### Day 4: Basic Algorithms – Searching and Sorting
 **Objectives:**
-- Understand the concepts behind basic algorithms.
-- Learn how to search for an element in an array."
-0.07843156803114164,0.05350329802111962,"**Topics:**
+- Understand the concepts behind"
+-0.08097926555690338,0.18266481021400105,"**Topics:**
 - Linear search and simple sorting ideas (conceptual)."
-0.131719141757537,-0.023961700355602064,"**Exercises:**
+-0.04966488305978243,0.27565809030071076,"**Exercises:**
 - Write pseudocode for a linear search algorithm."
-0.01609511311133174,-0.0661513218148769,"### Day 5: Mini Project and Review
+0.23916758811982514,-0.0947075731003302,"### Day 5: Mini Project and Review
 **Objectives:**
-- Combine data structures and algorithm concepts in a small project."
-0.09721631528945757,-0.07664156341251493,"**Project Example:**
-- Create a program that stores student names and scores in a map and calculates the average score."
-0.05645682935410807,0.02503339453942128,"**Exercises:**
+- Combine data structures and algorithm concepts "
+0.19314377646827635,0.025126931215166102,"**Project Example:**
+- Create a program that stores student names and scores in a map and calculates"
+-0.08330595606898764,0.2230079044615706,"**Exercises:**
 - Write the program and test with sample data."
-0.041750777727101035,-0.01961628401892137,"## ||| Week 5: Introduction to Go and Setup"
-0.07419633918044902,-0.06899182282863149,"### Day 1: Introduction to Go
+-0.11536504245923275,-0.025151706697211215,"## ||| Week 5: Introduction to Go and Setup"
+0.1970645135492894,-0.19028919529878283,"### Day 1: Introduction to Go
 **Objectives:**
-- Understand what Go is, its origins, and why it’s used.
-- Learn about Go’s design philosophy and core strengths."
--0.02005546278836779,0.016434683315394022,"**Topics:**
+- Understand what Go is, its origins, and why it’s use"
+0.07919150117855413,0.0756495911436945,"**Topics:**
 - History and purpose of Go.
 - Overview of Go’s simplicity and performance."
-0.052825257426766165,-0.03459427523789195,"**Exercises:**
+0.11906132124265655,0.12579379453854517,"**Exercises:**
 - Read an introductory article on Go.
-- Write down three reasons why Go might be a good language to learn."
-0.029110014058600676,-0.012412713631107498,"### Day 2: Installation and Setup
+- Write down three reasons why Go might be a go"
+0.2524310736203048,-0.05879601430363483,"### Day 2: Installation and Setup
 **Objectives:**
 - Install Go on your computer.
-- Configure environment variables (e.g., PATH, GOPATH)."
-0.04008247905474838,0.04194270004353196,"**Exercises:**
+- Configure environ"
+0.17014741042424308,0.15987281619341323,"**Exercises:**
 - Follow an online guide to install Go.
-- Verify your installation by running `go version` in your terminal."
-0.02143314262205184,-0.07640278306508269,"### Day 3: Your First Go Program
+- Verify your installation by running `go ver"
+0.15112523996970478,-0.09208466195507371,"### Day 3: Your First Go Program
 **Objectives:**
 - Write and run your first Go program.
-- Understand the basic structure of a Go program."
--0.2100342294923103,0.005028327470510135,"**Code Example:**
+- Understand"
+-0.34251248025431325,-0.08675601936374068,"**Code Example:**
 ```go
 package main"
-0.013125424119244163,-0.04740708148039709,"func main() {
+-0.10005834102314606,0.028936927506560378,"func main() {
     fmt.Println(""Hello, World!"")
 }
 ```"
-0.10243716268944601,0.025170726983169217,"**Exercises:**
+0.18613344275156937,0.06293278974219635,"**Exercises:**
 - Create a file named `hello.go` with the above code.
-- Run the program and observe the output."
-0.008405235613301863,-0.04326345554038702,"### Day 4: Basic Syntax and Code Structure
+- Run the program and observe t"
+0.25010217022729386,-0.04700608323456364,"### Day 4: Basic Syntax and Code Structure
 **Objectives:**
-- Learn about comments, formatting, and file structure in Go.
-- Use the built-in formatter (`gofmt`)."
--0.2100342294923103,0.005028327470510135,"**Code Example:**
+- Learn about comments, formatting, and f"
+-0.34251248025431325,-0.08675601936374068,"**Code Example:**
 ```go
 package main"
-0.09364395987363901,-0.0610214904945104,"// This function prints a welcome message.
+0.062355822855357304,-0.14160774548658123,"// This function prints a welcome message.
 func main() {
     // Print a message using fmt.Println
-    fmt.Println(""Welcome to Go programming!"")
-}
-```"
-0.05210138383756116,0.05211150702504085,"**Exercises:**
+  "
+0.12710072833919284,0.10582150102545897,"**Exercises:**
 - Add comments to your `hello.go` file.
-- Run `gofmt -w hello.go` and compare before/after formatting."
-0.07055581421968424,-0.017429354112898445,"### Day 5: Exercises and Review
+- Run `gofmt -w hello.go` and compare before/"
+0.24031078501362577,-0.10087262969022581,"### Day 5: Exercises and Review
 **Objectives:**
 - Review all topics covered in Week 5.
-- Complete hands-on exercises to solidify your understanding."
-0.05326800634385446,0.06519115904506018,"**Exercises:**
+- Complete ha"
+0.172708353359158,0.22837478997536556,"**Exercises:**
 - Modify the ""Hello, World!"" program to also print your name.
-- Write a short summary of what you learned this week."
--0.013173624736618919,-0.15156442523656727,"## ||| Week 6: Go Basics and Syntax"
-0.051402910629810165,0.05565178421100194,"### Day 1: Variables and Constants
+- Write a short summary"
+-0.17975005224946325,-0.002590412495176175,"## ||| Week 6: Go Basics and Syntax"
+0.17485322973675868,-0.23649054024609037,"### Day 1: Variables and Constants
 **Objectives:**
 - Learn how to declare variables and constants.
-- Understand type inference with the `:=` operator."
--0.2100342294923103,0.005028327470510135,"**Code Example:**
+-"
+-0.34251248025431325,-0.08675601936374068,"**Code Example:**
 ```go
 package main"
-0.01834357617841294,-0.08577335578650636,"func main() {
+0.0996996561846653,-0.07390190154590769,"func main() {
     var age int = 25
     name := ""Alice""
-    fmt.Printf(""%s is %d years old.\n"", name, age)
-}
-```"
-0.024153834395228495,0.033578827110852034,"**Exercises:**
+    fmt.Printf(""%s is %d years old.\n"", name,"
+0.21767075200202346,0.1438953791607038,"**Exercises:**
 - Declare a constant for your favorite number.
-- Print out a sentence that includes a variable and a constant."
-0.035022254481524275,-0.09433100931907311,"### Day 2: Data Types
+- Print out a sentence that includes a"
+0.34005469971407687,-0.01153766977779663,"### Day 2: Data Types
 **Objectives:**
-- Get acquainted with basic data types: integers, floats, booleans, and strings.
-- Learn how type inference works in Go."
--0.2100342294923103,0.005028327470510135,"**Code Example:**
+- Get acquainted with basic data types: integers, floats, bool"
+-0.34251248025431325,-0.08675601936374068,"**Code Example:**
 ```go
 package main"
-0.06335034189554258,-0.01652000043183991,"func main() {
+0.10186740315320635,-0.12784464834722906,"func main() {
     var integer int = 10
     floatNum := 3.14
     isTrue := true
-    text := ""Go is fun!""
-    fmt.Println(integer, floatNum, isTrue, text)
-}
-```"
-0.03838879370253245,0.01602785854058632,"**Exercises:**
+    text := ""Go is fu"
+0.03980747176909329,0.22691400481946702,"**Exercises:**
 - Create variables of each data type and print their values."
-0.06825361160457659,0.010736397037607818,"### Day 3: Basic Operators
+0.30329100529215725,-0.06906308926985694,"### Day 3: Basic Operators
 **Objectives:**
-- Understand arithmetic, relational, and logical operators.
-- Use operators in simple expressions."
--0.2100342294923103,0.005028327470510135,"**Code Example:**
+- Understand arithmetic, relational, and logical operator"
+-0.34251248025431325,-0.08675601936374068,"**Code Example:**
 ```go
 package main"
-0.08433190932858609,-0.012548994490357748,"func main() {
+0.15841186228577947,-0.1830522734246081,"func main() {
     a, b := 10, 5
     sum := a + b
     isEqual := (a == b)
-    fmt.Println(""Sum:"", sum, ""Are they equal?"", isEqual)
-}
-```"
-0.021183242747651678,0.04823051089755128,"**Exercises:**
+    fmt.Println(""Sum:"", sum"
+0.09244388531210998,0.10369818701919047,"**Exercises:**
 - Write a program that uses different operators to compare two numbers."
-0.12161640200527257,-0.048778379789290824,"### Day 4: Basic Input/Output
+0.2818086197414726,-0.1084004988873333,"### Day 4: Basic Input/Output
 **Objectives:**
-- Learn how to use `fmt.Println`, `fmt.Printf`, and `fmt.Scan` for I/O.
-- Practice formatting output."
--0.2100342294923103,0.005028327470510135,"**Code Example:**
+- Learn how to use `fmt.Println`, `fmt.Printf`, and `f"
+-0.34251248025431325,-0.08675601936374068,"**Code Example:**
 ```go
 package main"
-0.06678733704200816,-0.12316926681723746,"func main() {
+0.16054415121930532,-0.017723047018661568,"func main() {
     var name string
     fmt.Print(""Enter your name: "")
     fmt.Scan(&name)
-    fmt.Printf(""Hello, %s!\n"", name)
-}
-```"
-0.062138878564296875,-0.010772907472699298,"**Exercises:**
-- Create a program that prompts the user for two numbers, adds them, and prints the result."
-0.04852440914086114,-0.06664361208056,"### Day 5: Mini Project & Review
+    fmt.Pri"
+0.13956618176612393,0.10156366995879063,"**Exercises:**
+- Create a program that prompts the user for two numbers, adds them, and prints the r"
+0.16056583896384719,-0.020721486491323726,"### Day 5: Mini Project & Review
 **Objectives:**
-- Reinforce the week’s lessons with a small project.
-- Review variables, types, operators, and I/O."
-0.05932647850904375,-0.007559915856703603,"**Project Example:**
+- Reinforce the week’s lessons with a small project"
+0.013081167565813873,0.06715397530200198,"**Project Example:**
 - Write a program that calculates the area of a rectangle."
--0.2100342294923103,0.005028327470510135,"**Code Example:**
+-0.34251248025431325,-0.08675601936374068,"**Code Example:**
 ```go
 package main"
-0.050375695520474786,-0.015103398840368189,"func main() {
+0.15702300331987487,-0.0812185601811977,"func main() {
     var width, height float64
     fmt.Print(""Enter width: "")
     fmt.Scan(&width)
-    fmt.Print(""Enter height: "")
-    fmt.Scan(&height)
-    area := width * height
-    fmt.Printf(""The area is: %.2f\n"", area)
-}
-```"
-0.03582326536805238,0.11413777210203313,"**Exercises:**
+    "
+0.045682204080100965,0.32593317365606833,"**Exercises:**
 - Modify the project to also calculate and print the perimeter."
--0.016757844826823746,-0.15890257208587238,"## ||| Week 7: Control Structures and Basic Data Types"
-0.06274713633375295,0.04076676846372023,"### Day 1: If-Else Statements
+-0.038269168468281566,0.003198558292788808,"## ||| Week 7: Control Structures and Basic Data Types"
+0.2199704097262165,0.013751014401036453,"### Day 1: If-Else Statements
 **Objectives:**
-- Learn how to use if-else statements for decision making."
--0.2100342294923103,0.005028327470510135,"**Code Example:**
+- Learn how to use if-else statements for decision mak"
+-0.34251248025431325,-0.08675601936374068,"**Code Example:**
 ```go
 package main"
-0.05436082760042044,-0.0443191713695711,"func main() {
+0.025153167932845406,-0.16964456671796604,"func main() {
     age := 20
     if age >= 18 {
         fmt.Println(""You are an adult."")
-    } else {
-        fmt.Println(""You are a minor."")
-    }
-}
-```"
-0.060771380080688525,0.12467989364352668,"**Exercises:**
+    } else {"
+0.05578549055187525,0.1669028522585695,"**Exercises:**
 - Write a program that prints a message based on a numerical condition."
-0.0596139645405405,-0.002217232812626777,"### Day 2: Switch Statements
+0.12728349886501045,-0.06234088027264491,"### Day 2: Switch Statements
 **Objectives:**
-- Use switch statements for cleaner multiple conditional checks."
--0.2100342294923103,0.005028327470510135,"**Code Example:**
+- Use switch statements for cleaner multiple conditiona"
+-0.34251248025431325,-0.08675601936374068,"**Code Example:**
 ```go
 package main"
--0.04435387918940065,-0.07080734976606112,"func main() {
+0.10940944228289337,-0.2849791041806482,"func main() {
     day := 3
     switch day {
     case 1:
         fmt.Println(""Monday"")
     case 2:
-        fmt.Println(""Tuesday"")
-    case 3:
-        fmt.Println(""Wednesday"")
-    default:
-        fmt.Println(""Another day"")
-    }
-}
-```"
-0.06014894414825609,0.058986124696579385,"**Exercises:**
-- Create a switch statement that prints the name of a day based on a number input (1-7)."
-0.030591131348101472,0.019151256261959158,"### Day 3: For Loops (Part 1)
+  "
+0.105169447648089,0.2402053297771698,"**Exercises:**
+- Create a switch statement that prints the name of a day based on a number input (1-"
+0.20773710276078639,-0.1383133403227239,"### Day 3: For Loops (Part 1)
 **Objectives:**
 - Learn the basic structure of Go’s `for` loop."
--0.2100342294923103,0.005028327470510135,"**Code Example:**
+-0.34251248025431325,-0.08675601936374068,"**Code Example:**
 ```go
 package main"
-0.012613231818180231,-0.016179529974640148,"func main() {
+-0.04781367390550159,-0.015556087080838155,"func main() {
     for i := 0; i < 5; i++ {
         fmt.Println(""Iteration:"", i)
     }
 }
 ```"
-0.10583995832929387,0.042534115620740984,"**Exercises:**
+-0.0524880868451581,0.23734982477293382,"**Exercises:**
 - Write a loop that prints numbers from 1 to 10."
-0.0334670099199559,0.08094901575836856,"### Day 4: For Loops (Part 2) and Ranges
+0.010071596492677552,-0.08716645181384192,"### Day 4: For Loops (Part 2) and Ranges
 **Objectives:**
-- Use the `range` keyword with slices and arrays."
--0.2100342294923103,0.005028327470510135,"**Code Example:**
+- Use the `range` keyword with slices and a"
+-0.34251248025431325,-0.08675601936374068,"**Code Example:**
 ```go
 package main"
-0.02169904908075527,0.009596432317234392,"func main() {
+0.21713187826010938,-0.19748466215578894,"func main() {
     numbers := []int{10, 20, 30, 40, 50}
     for index, value := range numbers {
-        fmt.Printf(""Index: %d, Value: %d\n"", index, value)
-    }
-}
-```"
-0.07053735591140636,0.09001268982742276,"**Exercises:**
+     "
+0.11440890323293011,0.1885127795543366,"**Exercises:**
 - Create a slice of strings and print each element using a range-based loop."
-0.09387857381816046,0.011343857498231467,"### Day 5: Arrays and Strings
+0.1895966448304417,-0.16989318693181127,"### Day 5: Arrays and Strings
 **Objectives:**
 - Understand how to declare and use arrays.
-- Learn basic string manipulation."
--0.2100342294923103,0.005028327470510135,"**Code Example:**
+- Learn ba"
+-0.34251248025431325,-0.08675601936374068,"**Code Example:**
 ```go
 package main"
-0.04945573872651222,-0.037915416648374056,"func main() {
+0.04414382846861133,-0.04056525825090016,"func main() {
     // Array example
     var numbers [5]int = [5]int{1, 2, 3, 4, 5}
-    fmt.Println(""Array:"", numbers)"
-0.006981625672454816,0.07055854633996152,"// String iteration example
+    fmt.Println(""A"
+0.051958862582997416,0.01461587320225469,"// String iteration example
     str := ""GoLang""
     for i, c := range str {
-        fmt.Printf(""Character %d: %c\n"", i, c)
-    }
-}
-```"
-0.06067515017924395,0.10176051137827653,"**Exercises:**
+        fmt.Printf(""Char"
+-0.055351379451466176,0.17017983024048589,"**Exercises:**
 - Write a program that prints each character of a user-input string."
-0.02810135674721314,-0.16371498074029509,"## ||| Week 8: Functions, Error Handling, and Packages"
--0.001468047200972468,0.021877933280461045,"### Day 1: Functions Basics
+-0.0384391850087422,-0.03534317673863906,"## ||| Week 8: Functions, Error Handling, and Packages"
+0.127355145447544,-0.03569764022562403,"### Day 1: Functions Basics
 **Objectives:**
 - Define and call functions.
-- Understand parameters and return values."
--0.2100342294923103,0.005028327470510135,"**Code Example:**
+- Understand parameters and"
+-0.34251248025431325,-0.08675601936374068,"**Code Example:**
 ```go
 package main"
-0.02312697062152566,-0.009519483239575794,"func add(a int, b int) int {
+-0.21886535194309953,0.040056580099038785,"func add(a int, b int) int {
     return a + b
 }"
--0.019631923245287813,-0.056107498479121,"func main() {
+-0.1634101896770108,0.0843146166196015,"func main() {
     sum := add(3, 4)
     fmt.Println(""Sum:"", sum)
 }
 ```"
-0.03172967898827567,0.1138324348028449,"**Exercises:**
+0.07506085297549064,0.25068289761248436,"**Exercises:**
 - Write a function that multiplies two numbers and returns the result."
-0.016790044905872336,-0.028589032456285468,"### Day 2: Advanced Functions
+0.20753290495922228,-0.2120105154539271,"### Day 2: Advanced Functions
 **Objectives:**
 - Explore variadic functions and named return values."
--0.2100342294923103,0.005028327470510135,"**Code Example:**
+-0.34251248025431325,-0.08675601936374068,"**Code Example:**
 ```go
 package main"
--0.0006119791174096323,0.06679569666764791,"// Variadic function to sum numbers.
+0.11701235324916913,-0.04591644821133049,"// Variadic function to sum numbers.
 func sumAll(numbers ...int) (total int) {
-    for _, n := range numbers {
-        total += n
-    }
-    return
-}"
--0.011888440258846951,-0.13662558573638833,"func main() {
+    for _, n := range"
+-0.15784167253699163,-0.0019579853982385487,"func main() {
     fmt.Println(""Total:"", sumAll(1, 2, 3, 4))
 }
 ```"
-0.049897024170011475,0.006862406101261029,"**Exercises:**
+-0.026248854759441366,0.2000326715198202,"**Exercises:**
 - Write a variadic function that concatenates multiple strings."
-0.027660636339652003,0.005875553502431455,"### Day 3: Error Handling
+0.17266342415258518,-0.11148986513940906,"### Day 3: Error Handling
 **Objectives:**
-- Learn Go’s idiomatic error handling with the `error` type."
--0.2100342294923103,0.005028327470510135,"**Code Example:**
+- Learn Go’s idiomatic error handling with the `error` typ"
+-0.34251248025431325,-0.08675601936374068,"**Code Example:**
 ```go
 package main"
--0.03350359446905806,0.1447086626756603,"import (
+-0.23189754979393673,0.06478489643545278,"import (
     ""errors""
     ""fmt""
 )"
-0.023478696548553692,-0.059528124435407344,"func divide(a, b float64) (float64, error) {
+0.1779301423955867,-0.12987999622146493,"func divide(a, b float64) (float64, error) {
     if b == 0 {
-        return 0, errors.New(""cannot divide by zero"")
-    }
-    return a / b, nil
-}"
-0.0474606116414552,-0.08841607551044593,"func main() {
+        return 0, errors.New(""cannot di"
+-0.004329187200695487,-0.13400734576160472,"func main() {
     result, err := divide(10, 0)
     if err != nil {
-        fmt.Println(""Error:"", err)
-    } else {
-        fmt.Println(""Result:"", result)
-    }
-}
-```"
--0.01809167025898556,0.11642524400457478,"**Exercises:**
+        fmt.Println(""Error:"", err"
+-0.04735616787544026,0.24688451663950978,"**Exercises:**
 - Modify the divide function to handle more edge cases."
-0.033916466268900394,-0.011108575068301981,"### Day 4: Using Standard Library Packages
+0.21785414803545164,-0.09651865709196299,"### Day 4: Using Standard Library Packages
 **Objectives:**
-- Explore and use Go’s standard libraries."
--0.2100342294923103,0.005028327470510135,"**Code Example:**
+- Explore and use Go’s standard libraries"
+-0.34251248025431325,-0.08675601936374068,"**Code Example:**
 ```go
 package main"
-0.01054631820289793,0.17149267067230597,"import (
+-0.176290193216039,-0.00733118125785395,"import (
     ""fmt""
     ""strings""
 )"
-0.03245140020284669,-0.04669524629888966,"func main() {
+0.11472976048624109,-0.22280531080145796,"func main() {
     message := ""hello, world""
     upper := strings.ToUpper(message)
-    fmt.Println(""Uppercase:"", upper)
-}
-```"
-0.1296612507606711,0.0848958062231445,"**Exercises:**
+    fmt.Println(""U"
+0.03474682150289661,0.22974112339640293,"**Exercises:**
 - Use a standard library package (like `math`) in a simple function."
-0.04200533342714146,-0.12230214415798114,"### Day 5: Building and Organizing Code
+0.215215506058785,-0.03086868208271415,"### Day 5: Building and Organizing Code
 **Objectives:**
-- Learn how to structure a Go project using packages and modules."
-0.05800424134517726,0.05962794317470742,"**Exercises:**
-- Split a simple program into two files (one for functions, one for `main`) and initialize a module with `go mod init`."
-0.03971204140872336,-0.0965484344010903,"## ||| Week 9: Arrays, Slices, and Maps"
-0.0006446513849390353,-0.042397331847072325,"### Day 1: Arrays
+- Learn how to structure a Go project using "
+0.218520690304682,0.13753044714397877,"**Exercises:**
+- Split a simple program into two files (one for functions, one for `main`) and initi"
+-0.14978691473692154,0.030980435995347604,"## ||| Week 9: Arrays, Slices, and Maps"
+0.3335479449106188,-0.0995775811878069,"### Day 1: Arrays
 **Objectives:**
 - Understand arrays: declaration, initialization, and iteration."
--0.2100342294923103,0.005028327470510135,"**Code Example:**
+-0.34251248025431325,-0.08675601936374068,"**Code Example:**
 ```go
 package main"
-0.048099275553315585,0.05796865309569621,"func main() {
+0.10004850799209267,-0.07803761221658889,"func main() {
     numbers := [5]int{10, 20, 30, 40, 50}
     for i := 0; i < len(numbers); i++ {
-        fmt.Println(""Number:"", numbers[i])
-    }
-}
-```"
-0.15237177226917747,0.05364473262297609,"**Exercises:**
+    "
+-0.01644704042324173,0.21046601134199286,"**Exercises:**
 - Write a program that finds the maximum number in an array."
-0.0627182657740404,0.008009921034490814,"### Day 2: Slices
+0.06829098939749352,0.07822596718749492,"### Day 2: Slices
 **Objectives:**
 - Learn about slices as dynamic arrays."
--0.2100342294923103,0.005028327470510135,"**Code Example:**
+-0.34251248025431325,-0.08675601936374068,"**Code Example:**
 ```go
 package main"
-0.00685849447079494,0.022532531149401392,"func main() {
+0.17359690481704834,-0.28685417501271043,"func main() {
     numbers := []int{1, 2, 3}
     numbers = append(numbers, 4, 5)
-    fmt.Println(""Slice:"", numbers)
-}
-```"
-0.0747485392466253,0.05481517030264679,"**Exercises:**
+    fmt.Println(""Sli"
+0.0017613800239116165,0.2769105817958799,"**Exercises:**
 - Create a slice of strings and append new elements to it."
--0.0028985517485600777,0.07466669581972323,"### Day 3: Slice Operations
+0.18686727936220948,-0.004953667442371992,"### Day 3: Slice Operations
 **Objectives:**
 - Practice slicing, copying, and modifying slices."
--0.2100342294923103,0.005028327470510135,"**Code Example:**
+-0.34251248025431325,-0.08675601936374068,"**Code Example:**
 ```go
 package main"
-0.04827947259797876,0.017163212313213126,"func main() {
+0.22513758553871593,-0.3048801872384503,"func main() {
     numbers := []int{10, 20, 30, 40, 50}
     subSlice := numbers[1:4]
-    fmt.Println(""Sub-slice:"", subSlice)
-}
-```"
-0.09542682651822995,0.049785948678382146,"**Exercises:**
-- Write a program that creates a copy of a slice and modifies the copy without affecting the original."
--0.07206166592616459,0.01776934363170072,"### Day 4: Maps
+    fmt.Println("
+0.13359220685728843,-0.0634083418985228,"**Exercises:**
+- Write a program that creates a copy of a slice and modifies the copy without affect"
+-0.0498136925042459,0.07917905911007525,"### Day 4: Maps
 **Objectives:**
 - Introduce maps for key-value storage."
--0.2100342294923103,0.005028327470510135,"**Code Example:**
+-0.34251248025431325,-0.08675601936374068,"**Code Example:**
 ```go
 package main"
-0.047286416835627905,0.032252098078763204,"func main() {
+-0.07089208161746528,0.03263749119980744,"func main() {
     scores := map[string]int{
         ""Alice"": 90,
         ""Bob"":   85,
     }
-    scores[""Charlie""] = 95
-    fmt.Println(""Scores:"", scores)
-}
-```"
-0.07114371339132343,0.1203329361329283,"**Exercises:**
+    scor"
+0.17042661389600833,0.28106458465963685,"**Exercises:**
 - Create a map that stores product names and their prices, then print each entry."
-0.058644372642671534,0.01261925842949945,"### Day 5: Review and Mini Project
+0.18786597684964962,-0.11607596927136331,"### Day 5: Review and Mini Project
 **Objectives:**
-- Combine arrays, slices, and maps into a small project."
-0.08143576844420809,-0.013934507949889657,"**Project Example:**
-- Write a program that stores student names and scores, calculates the average score, and prints the details."
-0.051001933771224514,0.07445611792485336,"**Exercises:**
+- Combine arrays, slices, and maps into a small p"
+0.16983774146457442,-0.008734330058240161,"**Project Example:**
+- Write a program that stores student names and scores, calculates the average "
+0.1311679764310649,0.14162300900404845,"**Exercises:**
 - Enhance the program by adding functions to update and delete student records."
-0.10809255550374568,-0.02670186149253891,"## ||| Week 10: Pointers, Memory, and Interfaces"
-0.01226341319905429,-0.020082261689134788,"### Day 1: Pointers Basics
+-0.08311598155262466,-0.05425067045257291,"## ||| Week 10: Pointers, Memory, and Interfaces"
+0.24705623738565807,-0.138382364411881,"### Day 1: Pointers Basics
 **Objectives:**
-- Understand pointers, the address-of operator, and dereferencing."
--0.2100342294923103,0.005028327470510135,"**Code Example:**
+- Understand pointers, the address-of operator, and deref"
+-0.34251248025431325,-0.08675601936374068,"**Code Example:**
 ```go
 package main"
--0.035817880383693275,-0.03456348832502136,"func main() {
+0.05286896592215891,-0.006338037393138451,"func main() {
     x := 10
     p := &x
     fmt.Println(""Value of x:"", x)
-    fmt.Println(""Address of x:"", p)
-    fmt.Println(""Dereferenced value:"", *p)
-}
-```"
-0.07009575164116008,0.11786984968460566,"**Exercises:**
+    fmt.Println(""Address of "
+0.12005207880981007,0.11002735852524828,"**Exercises:**
 - Write a program that demonstrates pointer usage with basic variables."
-0.03166993940062759,-0.005343340323452183,"### Day 2: Pointers in Functions
+0.1456140018008739,-0.14388517584742902,"### Day 2: Pointers in Functions
 **Objectives:**
 - Pass pointers to functions to modify values."
--0.2100342294923103,0.005028327470510135,"**Code Example:**
+-0.34251248025431325,-0.08675601936374068,"**Code Example:**
 ```go
 package main"
-0.050700045407746606,-0.01142218396320283,"func increment(n *int) {
+-0.21181589195766998,0.00927028107189028,"func increment(n *int) {
     *n++
 }"
-0.011633316356619959,-0.06751315847215479,"func main() {
+0.20247476556965519,-0.05531092897928096,"func main() {
     value := 5
     increment(&value)
     fmt.Println(""Incremented value:"", value)
 }
-```"
-0.10141627405542354,0.059282848668023906,"**Exercises:**
+``"
+-0.04494941250524126,0.2357985048231904,"**Exercises:**
 - Create a function that swaps two integer values using pointers."
--0.006647129716240133,0.008542831812925594,"### Day 3: Introduction to Memory Management
+0.08814795454785798,-0.07646481615904131,"### Day 3: Introduction to Memory Management
 **Objectives:**
-- Learn about memory allocation using `new` and `make`.
-- Understand garbage collection at a high level."
--0.2100342294923103,0.005028327470510135,"**Code Example:**
+- Learn about memory allocation using `"
+-0.34251248025431325,-0.08675601936374068,"**Code Example:**
 ```go
 package main"
-0.025915680868841513,-0.042490478357818766,"func main() {
+0.10008284555555978,-0.10725704897830098,"func main() {
     // Using new to allocate a pointer to an int
     p := new(int)
     *p = 100
-    fmt.Println(""Value from new:"", *p)"
--0.030463638938448192,-0.045193782871407455,"// Using make to allocate a slice
+    fm"
+0.1473609648700639,-0.13981510922976984,"// Using make to allocate a slice
     s := make([]int, 3)
-    fmt.Println(""Slice allocated with make:"", s)
-}
-```"
-0.10550617989709295,0.014568869384451202,"**Exercises:**
+    fmt.Println(""Slice allocated with make"
+0.06008546358628605,0.02890440094683655,"**Exercises:**
 - Write a program that uses both `new` and `make` to allocate different types."
-0.016583046692714043,-0.0786664573621805,"### Day 4: Interfaces Basics
+0.0965548166900574,-0.128527438083882,"### Day 4: Interfaces Basics
 **Objectives:**
-- Introduce interfaces and how they provide abstraction."
--0.2100342294923103,0.005028327470510135,"**Code Example:**
+- Introduce interfaces and how they provide abstraction"
+-0.34251248025431325,-0.08675601936374068,"**Code Example:**
 ```go
 package main"
-0.007976910177063519,0.014121900973823027,"type Greeter interface {
+-0.10251830426713099,0.10131978654263722,"type Greeter interface {
     Greet() string
 }"
--0.08078572318871964,-0.026227134533738143,"type Person struct {
+-0.2005146883229046,0.04982784293874482,"type Person struct {
     Name string
 }"
-0.016610151111474326,-0.07780586367385747,"func (p Person) Greet() string {
+-0.11537129791931625,0.022533466794162196,"func (p Person) Greet() string {
     return ""Hello, "" + p.Name
 }"
-0.017940455239347782,-0.06906303103442821,"func main() {
+0.11090940461018524,-0.011469831517143795,"func main() {
     var g Greeter = Person{Name: ""Alice""}
     fmt.Println(g.Greet())
 }
 ```"
--0.017872593800723785,0.047499679765614665,"**Exercises:**
-- Define an interface for a simple shape (e.g., `Area() float64`) and implement it for a circle."
-0.03107528231746191,0.06756234871250918,"### Day 5: Interfaces in Depth
+0.1434860734293546,0.014811269348433301,"**Exercises:**
+- Define an interface for a simple shape (e.g., `Area() float64`) and implement it fo"
+0.18170303730273554,-0.10829928977923298,"### Day 5: Interfaces in Depth
 **Objectives:**
 - Explore type assertions and interface switching."
--0.2100342294923103,0.005028327470510135,"**Code Example:**
+-0.34251248025431325,-0.08675601936374068,"**Code Example:**
 ```go
 package main"
-0.042785433887079956,-0.14926817233682083,"type Describer interface {
+-0.13850800747527905,0.02843268563032615,"type Describer interface {
     Describe() string
 }"
--0.06716378875921913,-0.058397655035514195,"type Product struct {
+-0.11655540467696933,0.0368666284350907,"type Product struct {
     Name  string
     Price float64
 }"
-0.0555587493849626,-0.037781948035348054,"func (p Product) Describe() string {
+0.1828543113207325,-0.01417472350205377,"func (p Product) Describe() string {
     return fmt.Sprintf(""%s costs $%.2f"", p.Name, p.Price)
 }"
-0.01855767673163106,-0.08709182455754833,"func printDescription(d Describer) {
+0.02391573214312802,-0.19776735094279005,"func printDescription(d Describer) {
     switch v := d.(type) {
     case Product:
-        fmt.Println(""Product:"", v.Describe())
-    default:
-        fmt.Println(""Unknown type"")
-    }
-}"
-0.02385755976395617,-0.0017912563382485975,"func main() {
+        fmt.Printl"
+0.15176676170102713,-0.05058385255875492,"func main() {
     prod := Product{Name: ""Book"", Price: 12.99}
     printDescription(prod)
 }
 ```"
-0.043125788426737095,0.014646900236892163,"**Exercises:**
-- Extend the previous interface example by adding another type and handling it with a type switch."
--0.01609919117158702,-0.14771829302290362,"## ||| Week 11: Structs and Methods"
-0.03554485959814831,0.007484826279983512,"### Day 1: Introduction to Structs
+0.26592061006289297,0.12796990178436496,"**Exercises:**
+- Extend the previous interface example by adding another type and handling it with a"
+-0.16369253576212722,0.05895583101544079,"## ||| Week 11: Structs and Methods"
+0.1102243273017269,-0.09029925689861297,"### Day 1: Introduction to Structs
 **Objectives:**
 - Learn how to define and instantiate structs."
--0.2100342294923103,0.005028327470510135,"**Code Example:**
+-0.34251248025431325,-0.08675601936374068,"**Code Example:**
 ```go
 package main"
--0.01962029277825955,0.0006111198449265842,"type Person struct {
+-0.15869762505851542,0.012333231441711374,"type Person struct {
     Name string
     Age  int
 }"
-0.018208242538135303,-0.06303955237986071,"func main() {
+0.054638024993062015,-0.006224771862932149,"func main() {
     p := Person{Name: ""Alice"", Age: 30}
     fmt.Println(""Person:"", p)
 }
 ```"
-0.11320546503654674,0.12677210554812743,"**Exercises:**
-- Create a struct for a `Car` with fields like Model and Year, then instantiate and print it."
-0.05807980214183436,-0.048993388627202566,"### Day 2: Methods on Structs
+0.23512766621485465,0.03563914769938239,"**Exercises:**
+- Create a struct for a `Car` with fields like Model and Year, then instantiate and p"
+0.29685183914544155,-0.150407524315735,"### Day 2: Methods on Structs
 **Objectives:**
-- Associate methods with structs using value and pointer receivers."
--0.2100342294923103,0.005028327470510135,"**Code Example:**
+- Associate methods with structs using value and point"
+-0.34251248025431325,-0.08675601936374068,"**Code Example:**
 ```go
 package main"
--0.028532759447841394,0.1072111148698563,"type Rectangle struct {
+-0.16782756700515075,0.11564713445140475,"type Rectangle struct {
     Width, Height float64
 }"
--0.031895921442303285,0.012494098741778984,"// Value receiver
+0.06293706403992212,0.19066489899326272,"// Value receiver
 func (r Rectangle) Area() float64 {
     return r.Width * r.Height
 }"
--0.009103251038251981,0.061323852425214605,"// Pointer receiver
+0.16787572947543172,-0.13475357732275273,"// Pointer receiver
 func (r *Rectangle) Scale(factor float64) {
     r.Width *= factor
-    r.Height *= factor
-}"
--0.025112410892964628,-0.029124876665044697,"func main() {
+    r.Height *"
+0.1707836568146036,-0.07781723725903841,"func main() {
     rect := Rectangle{Width: 10, Height: 5}
     fmt.Println(""Area:"", rect.Area())
-    rect.Scale(2)
-    fmt.Println(""Scaled Area:"", rect.Area())
-}
-```"
-0.0358531985026213,-0.03002975799323168,"**Exercises:**
+    "
+-0.060035151555332386,0.3321094208196292,"**Exercises:**
 - Define a struct and add methods to modify its fields."
--0.024465952027030283,0.03959834673152808,"### Day 3: Struct Composition
+0.18610038019863406,-0.23309269994203646,"### Day 3: Struct Composition
 **Objectives:**
-- Understand how to embed structs to create composite types."
--0.2100342294923103,0.005028327470510135,"**Code Example:**
+- Understand how to embed structs to create composite "
+-0.34251248025431325,-0.08675601936374068,"**Code Example:**
 ```go
 package main"
--0.04347435990931032,0.010833479587631756,"type Address struct {
+-0.10911669825291834,0.025579397337311068,"type Address struct {
     City, Country string
 }"
--0.030886006887064017,-0.020841772498911615,"type Person struct {
+-0.12400291630580032,0.053877981334199826,"type Person struct {
     Name    string
     Address // Embedded struct
 }"
-0.04859936932540595,-0.026921649098429007,"func main() {
+-0.052576032969978787,-0.09185535693259847,"func main() {
     p := Person{
         Name: ""Alice"",
         Address: Address{
-            City:    ""Paris"",
-            Country: ""France"",
-        },
-    }
-    fmt.Printf(""%s lives in %s, %s\n"", p.Name, p.City, p.Country)
-}
-```"
-0.0873054583040694,0.06955777689271705,"**Exercises:**
+            City:   "
+0.1526857384627151,0.17562100173336243,"**Exercises:**
 - Create a composite struct for an `Employee` that embeds a `Person` struct."
-0.06872159264334277,0.015981986733017914,"### Day 4: Constructors and Initialization
+0.1976521930326323,0.006006160877912024,"### Day 4: Constructors and Initialization
 **Objectives:**
-- Create constructor functions for initializing structs."
--0.2100342294923103,0.005028327470510135,"**Code Example:**
+- Create constructor functions for initia"
+-0.34251248025431325,-0.08675601936374068,"**Code Example:**
 ```go
 package main"
--0.0003247172349790527,-0.04610438487470303,"type Book struct {
+-0.0998115952557977,0.09153002143414071,"type Book struct {
     Title  string
     Author string
     Pages  int
 }"
--0.022600369823011963,-0.04588343071829235,"func NewBook(title, author string, pages int) *Book {
+0.005189350932675064,0.007732581802498355,"func NewBook(title, author string, pages int) *Book {
     return &Book{
         Title:  title,
-        Author: author,
-        Pages:  pages,
-    }
-}"
--0.0129189028530223,-0.09496842576349898,"func main() {
+     "
+0.14868953964304174,-0.10665124448699445,"func main() {
     book := NewBook(""Go Programming"", ""Alice"", 300)
     fmt.Println(""Book:"", book)
 }
-```"
-0.011019757221314918,0.024096974066286088,"**Exercises:**
+`"
+0.14701802103301825,0.11439219139013487,"**Exercises:**
 - Write a constructor for a `Student` struct and instantiate a new student."
-0.019598272999409652,-0.03479850145141193,"### Day 5: Review and Mini Project
+0.17391701535056217,-0.12298768439475914,"### Day 5: Review and Mini Project
 **Objectives:**
-- Apply your knowledge of structs and methods in a small project."
--0.007715584473113514,-0.007806523629274093,"**Project Example:**
+- Apply your knowledge of structs and methods in "
+0.06587721193564827,-0.12877898116905595,"**Project Example:**
 - Build a simple book library system that can add, list, and update books."
-0.0655411106905289,0.023320167778378212,"**Exercises:**
+0.03823118965692868,0.24483287236296875,"**Exercises:**
 - Enhance the project by adding additional struct methods."
-0.05733072718436591,-0.06765105931163785,"## ||| Week 12: Concurrency in Go"
-0.09418496727532466,-0.00855812379942663,"### Day 1: Introduction to Concurrency
+-0.1208566940429862,-0.021722884163776972,"## ||| Week 12: Concurrency in Go"
+0.16543832408960701,-0.17446973460408663,"### Day 1: Introduction to Concurrency
 **Objectives:**
-- Understand the concept of concurrency and its importance in Go."
--0.2100342294923103,0.005028327470510135,"**Code Example:**
+- Understand the concept of concurrency and i"
+-0.34251248025431325,-0.08675601936374068,"**Code Example:**
 ```go
 package main"
--0.00907810847461596,0.2333996741532381,"import (
+-0.2040032958982866,0.04876577599001367,"import (
     ""fmt""
     ""time""
 )"
-0.0030794389191246734,-0.01687090421708999,"func sayHello() {
+-0.12004759939139187,0.030213464887514592,"func sayHello() {
     fmt.Println(""Hello from a goroutine!"")
 }"
--0.03834116504074915,-0.006335201961310497,"func main() {
+0.17096001299582234,-0.11057206920712861,"func main() {
     go sayHello()
     time.Sleep(time.Second) // Wait for the goroutine to finish
 }
-```"
-0.11872435978838848,0.02296400623659516,"**Exercises:**
+``"
+-0.018730430222525928,0.14254091182068837,"**Exercises:**
 - Write a simple program that launches a goroutine to print a message."
--0.006116335370683826,0.07416200727481051,"### Day 2: Goroutines in Depth
+0.13142027637791304,-0.008749354146247017,"### Day 2: Goroutines in Depth
 **Objectives:**
-- Practice launching multiple goroutines concurrently."
--0.2100342294923103,0.005028327470510135,"**Code Example:**
+- Practice launching multiple goroutines concurrently"
+-0.34251248025431325,-0.08675601936374068,"**Code Example:**
 ```go
 package main"
--0.00907810847461596,0.2333996741532381,"import (
+-0.2040032958982866,0.04876577599001367,"import (
     ""fmt""
     ""time""
 )"
-0.00028816757228133406,-0.04226578760695022,"func worker(id int) {
+0.05757231981398849,-0.08748392520127463,"func worker(id int) {
     fmt.Printf(""Worker %d starting\n"", id)
-    time.Sleep(500 * time.Millisecond)
-    fmt.Printf(""Worker %d done\n"", id)
-}"
-0.01179052231577333,0.03506403327917121,"func main() {
+    time.Sleep(500 * time.Milliseco"
+-0.00004600424189079265,-0.1828531302451559,"func main() {
     for i := 1; i <= 3; i++ {
         go worker(i)
     }
-    time.Sleep(2 * time.Second)
-}
-```"
-0.11055234259313027,0.043162448848510004,"**Exercises:**
+    time.Sleep(2 * time.Secon"
+0.06313065729682796,0.1998238901658438,"**Exercises:**
 - Launch several goroutines and observe how they run concurrently."
--0.0069862020192797015,0.06832826280926292,"### Day 3: Channels Basics
+0.1382345383148529,-0.049271092351930064,"### Day 3: Channels Basics
 **Objectives:**
 - Use channels to communicate between goroutines."
--0.2100342294923103,0.005028327470510135,"**Code Example:**
+-0.34251248025431325,-0.08675601936374068,"**Code Example:**
 ```go
 package main"
--0.018236619626548933,-0.06610750360849224,"func worker(done chan bool) {
+-0.007227296514396504,0.11442552176295483,"func worker(done chan bool) {
     fmt.Println(""Working..."")
     done <- true
 }"
-0.038156003472665324,-0.022624184791986753,"func main() {
+0.21084064258657007,-0.09560734718674051,"func main() {
     done := make(chan bool)
     go worker(done)
-    <-done // Wait for the worker to finish
-    fmt.Println(""Worker finished"")
-}
-```"
-0.07740332480390748,0.022121786805764383,"**Exercises:**
+    <-done // Wait for the worker to f"
+0.12048929631134513,0.009111961971625119,"**Exercises:**
 - Write a program that uses a channel to transfer data between two goroutines."
--0.013820983387456465,-0.019113696609179158,"### Day 4: Select Statement
+0.1076548730519207,-0.054145501517425004,"### Day 4: Select Statement
 **Objectives:**
-- Learn how to use the `select` statement to handle multiple channels."
--0.2100342294923103,0.005028327470510135,"**Code Example:**
+- Learn how to use the `select` statement to handle mult"
+-0.34251248025431325,-0.08675601936374068,"**Code Example:**
 ```go
 package main"
--0.00907810847461596,0.2333996741532381,"import (
+-0.2040032958982866,0.04876577599001367,"import (
     ""fmt""
     ""time""
 )"
--0.05378190824336994,-0.039926467073410125,"func main() {
+-0.18912274507703497,0.03505367478398437,"func main() {
     ch1 := make(chan string)
     ch2 := make(chan string)"
-0.036998576230293775,-0.022226826166770353,"go func() {
+0.04241575092855336,-0.02195319320460353,"go func() {
         time.Sleep(1 * time.Second)
         ch1 <- ""Message from channel 1""
     }()"
-0.025847512987386745,-0.010713594931663609,"go func() {
+0.032571995422466346,-0.010964673168718894,"go func() {
         time.Sleep(2 * time.Second)
         ch2 <- ""Message from channel 2""
     }()"
--0.0705329217629871,0.03943336748888019,"select {
+0.0464695564365611,-0.18636830128172097,"select {
     case msg1 := <-ch1:
         fmt.Println(msg1)
     case msg2 := <-ch2:
-        fmt.Println(msg2)
-    }
-}
-```"
-0.08635851180054882,0.03946174599028891,"**Exercises:**
+        fmt.Print"
+0.16888381037507263,0.228444455026303,"**Exercises:**
 - Create a program that uses `select` to receive messages from two channels."
--0.06442787435243855,-0.029039690516079887,"### Day 5: Concurrency Patterns and Review
+0.159724892066752,-0.0693736134133428,"### Day 5: Concurrency Patterns and Review
 **Objectives:**
-- Explore common concurrency patterns such as worker pools.
-- Review the week’s concepts."
--0.2100342294923103,0.005028327470510135,"**Code Example:**
+- Explore common concurrency patterns suc"
+-0.34251248025431325,-0.08675601936374068,"**Code Example:**
 ```go
 package main"
--0.00907810847461596,0.2333996741532381,"import (
+-0.2040032958982866,0.04876577599001367,"import (
     ""fmt""
     ""time""
 )"
--0.005095719750924179,0.006144594183101176,"func worker(id int, jobs <-chan int, results chan<- int) {
+0.00852550232176533,-0.01721697079134788,"func worker(id int, jobs <-chan int, results chan<- int) {
     for j := range jobs {
-        fmt.Printf(""Worker %d processing job %d\n"", id, j)
-        time.Sleep(time.Millisecond * 500)
-        results <- j * 2
-    }
-}"
--0.006385993111662453,0.020497578617355114,"func main() {
+        fmt.Pri"
+-0.0027767534283480964,-0.013176342538926087,"func main() {
     jobs := make(chan int, 5)
     results := make(chan int, 5)"
--0.004418393512160849,-0.003611889808661491,"for w := 1; w <= 3; w++ {
+-0.1357052160101773,0.1495802297811199,"for w := 1; w <= 3; w++ {
         go worker(w, jobs, results)
     }"
-0.051573739791402326,-0.0314164591518446,"for j := 1; j <= 5; j++ {
+-0.08558957676703305,0.1901289164039236,"for j := 1; j <= 5; j++ {
         jobs <- j
     }
     close(jobs)"
-0.03702027925364978,-0.08195532036960149,"for a := 1; a <= 5; a++ {
+-0.05019314345721215,0.23733543393023634,"for a := 1; a <= 5; a++ {
         fmt.Println(""Result:"", <-results)
     }
 }
 ```"
-0.016211688701023547,0.05771815825213633,"**Exercises:**
+0.17879079688408966,0.17399393416667033,"**Exercises:**
 - Modify the worker pool example to handle more jobs and different processing logic."
-0.008631432886403837,-0.0032135101778424497,"## ||| Week 13: Working with Files, Networking, and the Web"
-0.003050983543805685,0.027090677532384998,"### Day 1: File I/O Basics
+-0.04916678373847402,0.10543670442649454,"## ||| Week 13: Working with Files, Networking, and the Web"
+0.14768936305205219,-0.08509997094315926,"### Day 1: File I/O Basics
 **Objectives:**
 - Learn to read from and write to files using Go."
--0.2100342294923103,0.005028327470510135,"**Code Example:**
+-0.34251248025431325,-0.08675601936374068,"**Code Example:**
 ```go
 package main"
-0.03149733108284031,0.14620576137254693,"import (
+-0.19975497401239944,0.0011687289500136155,"import (
     ""fmt""
     ""io/ioutil""
     ""log""
 )"
-0.03666730982121617,-0.10096525304828252,"func main() {
+0.012936314154787769,-0.18078752610093207,"func main() {
     data, err := ioutil.ReadFile(""sample.txt"")
     if err != nil {
-        log.Fatal(err)
-    }
-    fmt.Println(""File contents:"", string(data))
-}
-```"
-0.04188231948490011,0.09263736181099289,"**Exercises:**
+        log.Fatal(e"
+0.19035746035662762,0.13757176852976039,"**Exercises:**
 - Create a text file and write a program to read and print its contents."
-0.008051067431313416,0.08122576732695008,"### Day 2: More on File I/O
+0.1458441927565859,-0.0589561072842599,"### Day 2: More on File I/O
 **Objectives:**
 - Explore advanced file operations and error handling."
--0.2100342294923103,0.005028327470510135,"**Code Example:**
+-0.34251248025431325,-0.08675601936374068,"**Code Example:**
 ```go
 package main"
-0.04046091631715673,0.1297134334075011,"import (
+-0.18443434421872587,0.0501238965061107,"import (
     ""fmt""
     ""io/ioutil""
     ""log""
     ""os""
 )"
-0.07120039250530343,0.03356449951991166,"func main() {
+0.24028041815213816,-0.20293159250654533,"func main() {
     content := []byte(""Hello, file!"")
-    err := ioutil.WriteFile(""output.txt"", content, 0644)
-    if err != nil {
-        log.Fatal(err)
-    }
-    fmt.Println(""Data written to file successfully"")
-}
-```"
-0.11698106251911453,0.06355481749442292,"**Exercises:**
+    err := ioutil.WriteFile(""output.txt"", conten"
+-0.17676044136760335,0.2745149329887009,"**Exercises:**
 - Write a program that appends user input to a file."
-0.06317375017125915,-0.02566266189512454,"### Day 3: Introduction to HTTP Servers
+0.07441105364354159,-0.03470640073828878,"### Day 3: Introduction to HTTP Servers
 **Objectives:**
-- Build a simple HTTP server using Go’s `net/http` package."
--0.2100342294923103,0.005028327470510135,"**Code Example:**
+- Build a simple HTTP server using Go’s `net"
+-0.34251248025431325,-0.08675601936374068,"**Code Example:**
 ```go
 package main"
--0.01603966198493981,0.10225313317572342,"import (
+-0.22547215962941383,0.07002579095552519,"import (
     ""fmt""
     ""net/http""
 )"
-0.06386625463206498,-0.10410078403607798,"func helloHandler(w http.ResponseWriter, r *http.Request) {
+0.26011294337399765,-0.05185881885403714,"func helloHandler(w http.ResponseWriter, r *http.Request) {
     fmt.Fprintln(w, ""Hello, Go Web!"")
 }"
-0.10473287954049708,-0.047557303465427726,"func main() {
+0.13861530381145767,-0.21298046548403696,"func main() {
     http.HandleFunc(""/"", helloHandler)
     fmt.Println(""Server starting on :8080"")
-    http.ListenAndServe("":8080"", nil)
-}
-```"
-0.10124004794567035,0.023424946265786884,"**Exercises:**
+   "
+0.15457302008484428,0.16555634500439484,"**Exercises:**
 - Create a server that responds with different messages based on the URL path."
-0.04277717051250442,-0.03938003414084132,"### Day 4: HTTP Clients
+0.09432012882386846,-0.07660435915762646,"### Day 4: HTTP Clients
 **Objectives:**
 - Learn how to make HTTP requests using Go."
--0.2100342294923103,0.005028327470510135,"**Code Example:**
+-0.34251248025431325,-0.08675601936374068,"**Code Example:**
 ```go
 package main"
--0.005536654454124291,0.13524368099811043,"import (
+-0.1357504168564505,-0.01706207367408884,"import (
     ""fmt""
     ""io/ioutil""
     ""net/http""
 )"
-0.016147432625210158,-0.06797773622611444,"func main() {
+0.1086674634311193,-0.03864453513625724,"func main() {
     resp, err := http.Get(""https://api.github.com"")
     if err != nil {
-        fmt.Println(""Error:"", err)
-        return
-    }
-    defer resp.Body.Close()
-    body, _ := ioutil.ReadAll(resp.Body)
-    fmt.Println(""Response:"", string(body))
-}
-```"
-0.12438924346689047,0.05892550235324945,"**Exercises:**
-- Write a program that fetches data from a public API and displays a specific field from the JSON response."
--0.059658294110708714,-0.017387316219630477,"### Day 5: JSON Handling
+        fmt.Pr"
+0.10654964163509148,0.16216483143080915,"**Exercises:**
+- Write a program that fetches data from a public API and displays a specific field f"
+0.12871594686533236,0.07788659177843701,"### Day 5: JSON Handling
 **Objectives:**
 - Learn to marshal and unmarshal JSON data."
--0.2100342294923103,0.005028327470510135,"**Code Example:**
+-0.34251248025431325,-0.08675601936374068,"**Code Example:**
 ```go
 package main"
--0.030429746193176073,0.08686993916206949,"import (
+-0.24174035465782698,0.15000354752151637,"import (
     ""encoding/json""
     ""fmt""
 )"
--0.026818278900303326,-0.02972330712544425,"type User struct {
+-0.059476980958365094,0.003976639356063355,"type User struct {
     Name string `json:""name""`
     Age  int    `json:""age""`
 }"
-0.06591074664426642,-0.07049474667774541,"func main() {
+0.017304373151196952,-0.12293401722985084,"func main() {
     jsonData := `{""name"": ""Alice"", ""age"": 30}`
     var user User
-    err := json.Unmarshal([]byte(jsonData), &user)
-    if err != nil {
-        fmt.Println(""Error:"", err)
-    }
-    fmt.Printf(""User: %+v\n"", user)
-}
-```"
-0.09139187460400046,0.050220740349221034,"**Exercises:**
-- Create a program that reads JSON data from a file, unmarshals it into a struct, and prints the result."
-0.07583242673857649,-0.1044108927486303,"## ||| Week 14: Testing, Debugging, and Best Practices"
-0.10728724310446643,-0.09392488829151434,"### Day 1: Introduction to Testing
+    err := json.Unmar"
+0.19569767243577318,0.03886857991114331,"**Exercises:**
+- Create a program that reads JSON data from a file, unmarshals it into a struct, and"
+0.012293835193175489,0.040675097378116185,"## ||| Week 14: Testing, Debugging, and Best Practices"
+0.1150521569031077,-0.056482703933937,"### Day 1: Introduction to Testing
 **Objectives:**
-- Understand the basics of testing in Go using the `testing` package."
--0.2100342294923103,0.005028327470510135,"**Code Example:**
+- Understand the basics of testing in Go using th"
+-0.34251248025431325,-0.08675601936374068,"**Code Example:**
 ```go
 package main"
-0.000847656023033644,-0.06993118589850397,"func Add(a, b int) int {
+-0.189145872892789,0.0993535868249145,"func Add(a, b int) int {
     return a + b
 }"
-0.050838603040322033,0.03933981425388553,"func TestAdd(t *testing.T) {
+0.06977904771539115,0.14930322314367453,"func TestAdd(t *testing.T) {
     result := Add(2, 3)
     if result != 5 {
-        t.Errorf(""Expected 5, got %d"", result)
-    }
-}
-```"
-0.10598391746923598,0.053607843509074486,"**Exercises:**
+        t.Errorf(""Expected"
+0.0023544029449376882,0.1346321480981423,"**Exercises:**
 - Write tests for a simple function you’ve created in previous lessons."
--0.020059563787618032,0.10113147654791099,"### Day 2: Writing More Tests
+0.2023601659910492,-0.05913257863500739,"### Day 2: Writing More Tests
 **Objectives:**
 - Learn table-driven tests and subtests."
--0.2100342294923103,0.005028327470510135,"**Code Example:**
+-0.34251248025431325,-0.08675601936374068,"**Code Example:**
 ```go
 package main"
-0.06004328178506811,-0.067720668205668,"func Multiply(a, b int) int {
+-0.06916421590703951,0.13793968929919764,"func Multiply(a, b int) int {
     return a * b
 }"
-0.02468840079658082,-0.08122219746733245,"func TestMultiply(t *testing.T) {
+-0.03269143069656635,0.07988928255254676,"func TestMultiply(t *testing.T) {
     tests := []struct {
         a, b, expected int
     }{
-        {2, 3, 6},
-        {4, 5, 20},
-        {0, 10, 0},
-    }
-    for _, test := range tests {
-        result := Multiply(test.a, test.b)
-        if result != test.expected {
-            t.Errorf(""Multiply(%d, %d) = %d; want %d"", test.a, test.b, result, test.expected)
-        }
-    }
-}
-```"
-0.05976162908215432,0.049025629001553446,"**Exercises:**
+        "
+-0.07264297789509074,0.15736613110035202,"**Exercises:**
 - Add additional test cases to your functions from previous weeks."
--0.01091146078957794,-0.058782548120030136,"### Day 3: Benchmarking
+0.03139672684249412,-0.002902376370102556,"### Day 3: Benchmarking
 **Objectives:**
 - Write benchmark tests to measure performance."
--0.2100342294923103,0.005028327470510135,"**Code Example:**
+-0.34251248025431325,-0.08675601936374068,"**Code Example:**
 ```go
 package main"
-0.13446352433784522,-0.04665198872053513,"func SumSlice(s []int) int {
+-0.030571451311978234,-0.06189524492052082,"func SumSlice(s []int) int {
     total := 0
     for _, v := range s {
         total += v
     }
-    return total
-}"
-0.0324085091804516,0.01365972314653176,"func BenchmarkSumSlice(b *testing.B) {
+    r"
+0.09996076836871615,-0.04390138631321721,"func BenchmarkSumSlice(b *testing.B) {
     s := []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}
-    for i := 0; i < b.N; i++ {
-        SumSlice(s)
-    }
-}
-```"
-0.08920068567418354,0.05588713056331593,"**Exercises:**
+    for i := 0;"
+-0.12139020703370192,0.13975259544755347,"**Exercises:**
 - Write a benchmark for one of your functions."
-0.01671914253025478,-0.12225609937237494,"### Day 4: Debugging Techniques
+0.23200477395550595,-0.1743851651317757,"### Day 4: Debugging Techniques
 **Objectives:**
-- Learn simple debugging techniques using print statements and the `log` package."
--0.2100342294923103,0.005028327470510135,"**Code Example:**
+- Learn simple debugging techniques using print stat"
+-0.34251248025431325,-0.08675601936374068,"**Code Example:**
 ```go
 package main"
-0.0035051907064932446,-0.023162818652724494,"func faultyFunction(n int) int {
+0.05883390775967556,0.018039787556754602,"func faultyFunction(n int) int {
     if n < 0 {
         log.Println(""Received negative value"")
-        return 0
-    }
-    return n * 2
-}"
--0.002037351717098791,-0.1130542442442944,"func main() {
+     "
+-0.1578834327279004,0.034123976258044614,"func main() {
     fmt.Println(""Result:"", faultyFunction(-5))
 }
 ```"
-0.08300623505593005,0.08003114768905364,"**Exercises:**
+0.08919337464219615,0.11453376695810714,"**Exercises:**
 - Insert debugging prints in an existing function to trace its execution."
-0.08861809050703534,-0.056363037475914944,"### Day 5: Best Practices and Code Reviews
+0.13315624182238497,-0.11540727347383238,"### Day 5: Best Practices and Code Reviews
 **Objectives:**
-- Review best practices in Go coding: formatting, error handling, and documentation.
-- Learn how to refactor code."
-0.012077800276013932,0.012090658117448248,"**Exercises:**
+- Review best practices in Go coding: for"
+0.23779347020578137,0.13562745225597653,"**Exercises:**
 - Review an old project, refactor it, and add comments/documentation.
-- Format your code with `gofmt` and review it with `go vet`."
--0.0094085882326355,-0.0797602628195318,"## ||| Week 15: Building CLI and Web Applications"
--0.02128606191852156,-0.06827193231464576,"### Day 1: Introduction to CLI Applications
+- Format your c"
+-0.05380831323569213,-0.0866769392825175,"## ||| Week 15: Building CLI and Web Applications"
+0.24594312574472027,-0.14290218802132854,"### Day 1: Introduction to CLI Applications
 **Objectives:**
-- Learn how to build simple command-line applications using the `flag` package."
--0.2100342294923103,0.005028327470510135,"**Code Example:**
+- Learn how to build simple command-line"
+-0.34251248025431325,-0.08675601936374068,"**Code Example:**
 ```go
 package main"
--0.028984196223662478,0.1302039380486012,"import (
+-0.20967071715607563,0.1100038410207904,"import (
     ""flag""
     ""fmt""
 )"
-0.011599464019052791,-0.013124666230963991,"func main() {
+0.1338310845512487,-0.1638688218140038,"func main() {
     name := flag.String(""name"", ""World"", ""a name to greet"")
     flag.Parse()
-    fmt.Printf(""Hello, %s!\n"", *name)
-}
-```"
-0.0642380264131683,0.02934739186401814,"**Exercises:**
+    fmt.P"
+0.15530823535393015,0.20908318880909021,"**Exercises:**
 - Create a CLI tool that accepts a few flags and prints a customized message."
-0.020029492514488635,-0.07087780768109773,"### Day 2: Advanced CLI Applications
+0.07271019027339379,0.08527074125859312,"### Day 2: Advanced CLI Applications
 **Objectives:**
-- Explore advanced CLI features such as subcommands (using external libraries if desired)."
-0.04517548928756868,0.009916485499542011,"**Exercises:**
+- Explore advanced CLI features such as subcomm"
+0.0936763398984384,0.16832553285222582,"**Exercises:**
 - Extend your CLI tool to handle subcommands (e.g., `add`, `list`)."
-0.06913612013769542,-0.029612179966908632,"### Day 3: Introduction to Web Applications
+0.25200115746630747,-0.20593112288686746,"### Day 3: Introduction to Web Applications
 **Objectives:**
-- Learn the basics of building web applications and REST APIs in Go."
--0.2100342294923103,0.005028327470510135,"**Code Example:**
+- Learn the basics of building web appli"
+-0.34251248025431325,-0.08675601936374068,"**Code Example:**
 ```go
 package main"
--0.03025933370529237,0.07267131217744041,"import (
+-0.20779237530592742,0.13622576003420034,"import (
     ""encoding/json""
     ""fmt""
     ""net/http""
 )"
--0.006553387595753541,-0.04854454542854035,"type Message struct {
+-0.11103005034887928,0.06169640080563447,"type Message struct {
     Text string `json:""text""`
 }"
-0.026939941981256356,-0.06520666276786162,"func messageHandler(w http.ResponseWriter, r *http.Request) {
-    msg := Message{Text: ""Hello, API!""}
-    json.NewEncoder(w).Encode(msg)
-}"
-0.04615441793888067,-0.12531684075387367,"func main() {
+0.2038328415951428,-0.10438212403367979,"func messageHandler(w http.ResponseWriter, r *http.Request) {
+    msg := Message{Text: ""Hello, API!"""
+0.06905199438193714,-0.09429623250255552,"func main() {
     http.HandleFunc(""/message"", messageHandler)
-    fmt.Println(""Server running on :8080"")
-    http.ListenAndServe("":8080"", nil)
-}
-```"
-0.12116637333552317,0.07402476102550928,"**Exercises:**
+    fmt.Println(""Server running on :80"
+-0.036631520312722536,0.2698016397799861,"**Exercises:**
 - Create a minimal REST API with at least two endpoints."
--0.02246193891096706,-0.04419219559480712,"### Day 4: Web Frameworks Overview
+0.25614632537530196,-0.1127330886148583,"### Day 4: Web Frameworks Overview
 **Objectives:**
-- Get an overview of popular Go web frameworks (e.g., Gin, Echo, Fiber)."
--0.09573265945830194,-0.05361928431080342,"**Code Example (using Gin):**
+- Get an overview of popular Go web frameworks (e"
+-0.19781027541080112,0.04289429407464785,"**Code Example (using Gin):**
 ```go
 package main"
-0.012691736116450601,0.02912110309105341,"import (
+-0.14670298742153154,0.08485757190164969,"import (
     ""net/http""
     ""github.com/gin-gonic/gin""
 )"
--0.022334058744257295,-0.013610085845007315,"func main() {
+0.1273590743673941,-0.13659595942992322,"func main() {
     r := gin.Default()
     r.GET(""/ping"", func(c *gin.Context) {
-        c.JSON(http.StatusOK, gin.H{""message"": ""pong""})
-    })
-    r.Run("":8080"")
-}
-```"
-0.03714177172674906,0.018340563094237365,"**Exercises:**
+        c.JSON(http.S"
+0.17487776207141936,0.16741693106088062,"**Exercises:**
 - Install a web framework of your choice and create a simple routing example."
-0.02370758794545844,0.009348184660487412,"### Day 5: Deployment and Project Structure
+0.22363796904230512,-0.11499688175216712,"### Day 5: Deployment and Project Structure
 **Objectives:**
-- Learn how to structure a Go project and prepare it for deployment.
-- Understand version control basics with Git."
-0.04632544530110501,0.025183123675140084,"**Exercises:**
-- Organize your CLI or web project using modules (`go mod init`) and document build instructions."
-0.04338021977819584,-0.11076187416050254,"## ||| Week 16: Final Project and Career Development"
-0.028997399490390312,-0.10811229895428597,"### Day 1: Final Project Kick-off
+- Learn how to structure a Go project an"
+0.08239582706546393,0.03656038667098789,"**Exercises:**
+- Organize your CLI or web project using modules (`go mod init`) and document build i"
+-0.031514626019673336,-0.07793448097454385,"## ||| Week 16: Final Project and Career Development"
+0.10382952963929375,-0.08972850403724557,"### Day 1: Final Project Kick-off
 **Objectives:**
-- Outline your final project (e.g., a task manager or blog engine).
-- Define requirements and plan features."
-0.06859868906870473,0.10020217294635277,"**Exercises:**
+- Outline your final project (e.g., a task manager"
+-0.04666477580931614,0.3056831209946317,"**Exercises:**
 - Create a project plan outlining the main features and modules."
-0.06407602689381024,-0.11289347658710586,"### Day 2: Building the Core Functionality
+0.19806143201593457,-0.01933393731919092,"### Day 2: Building the Core Functionality
 **Objectives:**
-- Implement the core components of your project.
-- Define data models and core functions."
-0.021470418786461096,0.02708176928793787,"**Exercises:**
+- Implement the core components of your p"
+0.19040249603408954,0.0740548682786197,"**Exercises:**
 - Start coding the main functionality (e.g., data handling for a task manager)."
-0.13473603580916987,-0.019908030101079218,"### Day 3: Expanding the Project
+0.17519605209356456,0.010038353330051215,"### Day 3: Expanding the Project
 **Objectives:**
-- Add additional features, error handling, and concurrency if applicable.
-- Integrate modules built in previous weeks."
-0.026119127637762602,-0.04178864408892867,"**Exercises:**
-- Enhance your project with extra features (e.g., user authentication or background processing)."
-0.05356279606139885,-0.0021872059389694666,"### Day 4: Testing and Debugging the Final Project
+- Add additional features, error handling, and conc"
+0.16659592511516919,0.1539294359484832,"**Exercises:**
+- Enhance your project with extra features (e.g., user authentication or background p"
+0.1262668291528879,0.0008015217734900527,"### Day 4: Testing and Debugging the Final Project
 **Objectives:**
-- Write tests for your final project.
-- Debug and refactor your code."
-0.03849431461367537,0.09385557680706956,"**Exercises:**
+- Write tests for your final proj"
+0.21368418723429722,-0.043098460305508075,"**Exercises:**
 - Create a test suite covering core functions.
-- Refactor your code for readability and maintainability."
-0.06297675957323082,-0.06390148333985624,"### Day 5: Final Review, Code Cleanup, and Career Prep
+- Refactor your code for readability a"
+0.16120596961911826,-0.07837251494663637,"### Day 5: Final Review, Code Cleanup, and Career Prep
 **Objectives:**
-- Finalize your project, add documentation, and prepare a README.
-- Learn about code reviews, Git usage, and interview preparation tips."
-0.04166943097899446,0.01672400992963893,"**Exercises:**
+- Finalize your project, add "
+0.21839397093045199,0.2511874866872544,"**Exercises:**
 - Submit your project to GitHub.
-- Write a reflection on your learning journey and prepare for technical interviews."
+- Write a reflection on your learning journey and pr"

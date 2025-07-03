@@ -1,0 +1,2 @@
+config,run,recall_at_1,recall_at_5,mrr
+ELMEnsemble_1024_512_512_256_256_128_128_64_64_32_16_8_dropout0.02_run1,0.4710,0.8250,0.5801

@@ -40,6 +40,10 @@ export class ELM {
     public config: ELMConfig;
     public modelName: string;
     public logToFile: boolean;
+    public dropout: number;
+
+    public inputWeights: Matrix;
+    public biases: Matrix;
 
     constructor(config: ELMConfig & { charSet?: string; useTokenizer?: boolean; tokenizerDelimiter?: RegExp }) {
         const cfg = { ...defaultConfig, ...config };
@@ -55,6 +59,7 @@ export class ELM {
         this.verbose = cfg.log?.verbose ?? true;
         this.modelName = cfg.log?.modelName ?? 'Unnamed ELM Model';
         this.logToFile = cfg.log?.toFile ?? false;
+        this.dropout = cfg.dropout ?? 0;
 
         this.encoder = new UniversalEncoder({
             charSet: this.charSet,
@@ -63,6 +68,9 @@ export class ELM {
             tokenizerDelimiter: this.tokenizerDelimiter,
             mode: this.useTokenizer ? 'token' : 'char'
         });
+
+        this.inputWeights = Matrix.fromArray(this.randomMatrix(cfg.hiddenUnits, cfg.maxLen));
+        this.biases = Matrix.fromArray(this.randomMatrix(cfg.hiddenUnits, 1));
 
         this.model = null;
     }
@@ -80,9 +88,18 @@ export class ELM {
     }
 
     private randomMatrix(rows: number, cols: number): number[][] {
-        return Array.from({ length: rows }, () =>
-            Array.from({ length: cols }, () => Math.random() * 2 - 1)
-        );
+        if (this.config.weightInit === "xavier") {
+            if (this.verbose) console.log(`✨ Xavier init with limit sqrt(6/${rows}+${cols})`);
+            const limit = Math.sqrt(6 / (rows + cols));
+            return Array.from({ length: rows }, () =>
+                Array.from({ length: cols }, () => Math.random() * 2 * limit - limit)
+            );
+        } else {
+            if (this.verbose) console.log(`✨ Uniform init [-1,1]`);
+            return Array.from({ length: rows }, () =>
+                Array.from({ length: cols }, () => Math.random() * 2 - 1)
+            );
+        }
     }
 
     public setCategories(categories: string[]) {
@@ -100,22 +117,62 @@ export class ELM {
         }
     }
 
-    public trainFromData(X: number[][], Y: number[][]): void {
-        const W = this.randomMatrix(this.hiddenUnits, X[0].length);
-        const b = this.randomMatrix(this.hiddenUnits, 1);
+    public trainFromData(
+        X: number[][],
+        Y: number[][],
+        options?: {
+            reuseWeights?: boolean;
+            weights?: number[];
+        }
+    ): void {
+        const reuseWeights = options?.reuseWeights === true;
+
+        let W: number[][], b: number[][];
+        if (reuseWeights && this.model) {
+            W = this.model.W;
+            b = this.model.b;
+            if (this.verbose) console.log("🔄 Reusing existing weights/biases for training.");
+        } else {
+            W = this.randomMatrix(this.hiddenUnits, X[0].length);
+            b = this.randomMatrix(this.hiddenUnits, 1);
+            if (this.verbose) console.log("✨ Initializing fresh weights/biases for training.");
+        }
+
         const tempH = Matrix.multiply(X, Matrix.transpose(W));
         const activationFn = Activations.get(this.activation);
-        const H = Activations.apply(tempH.map(row =>
-            row.map((val, j) => val + b[j][0])
-        ), activationFn);
+        let H = Activations.apply(
+            tempH.map(row => row.map((val, j) => val + b[j][0])),
+            activationFn
+        );
+
+        if (this.dropout > 0) {
+            const keepProb = 1 - this.dropout;
+            for (let i = 0; i < H.length; i++) {
+                for (let j = 0; j < H[0].length; j++) {
+                    if (Math.random() < this.dropout) {
+                        H[i][j] = 0;
+                    } else {
+                        H[i][j] /= keepProb;
+                    }
+                }
+            }
+        }
+
+        if (options?.weights) {
+            const W_arr = options.weights;
+            if (W_arr.length !== H.length) {
+                throw new Error(`Weight array length ${W_arr.length} does not match sample count ${H.length}`);
+            }
+            // Scale each row by sqrt(weight)
+            H = H.map((row, i) => row.map(x => x * Math.sqrt(W_arr[i])));
+            Y = Y.map((row, i) => row.map(x => x * Math.sqrt(W_arr[i])));
+        }
 
         const H_pinv = this.pseudoInverse(H);
         const beta = Matrix.multiply(H_pinv, Y);
         this.model = { W, b, beta };
 
         const predictions = Matrix.multiply(H, beta);
-        const results: Record<string, number> = {};
-        let allPassed = true;
 
         if (this.metrics) {
             const rmse = this.calculateRMSE(Y, predictions);
@@ -124,6 +181,9 @@ export class ELM {
             const f1 = this.calculateF1Score(Y, predictions);
             const ce = this.calculateCrossEntropy(Y, predictions);
             const r2 = this.calculateR2Score(Y, predictions);
+
+            const results: Record<string, number> = {};
+            let allPassed = true;
 
             if (this.metrics.rmse !== undefined) {
                 results.rmse = rmse;
@@ -162,16 +222,25 @@ export class ELM {
                 if (this.verbose) console.log("❌ Model not saved: One or more thresholds not met.");
             }
         } else {
-            throw new Error("No metrics defined in config. Please specify at least one metric to evaluate.");
+            // No metrics—always save the model
+            this.savedModelJSON = JSON.stringify(this.model);
+            if (this.verbose) console.log("✅ Model trained with no metrics—saved by default.");
+            if (this.config.exportFileName) {
+                this.saveModelAsJSONFile(this.config.exportFileName);
+            }
         }
     }
 
-    public train(augmentationOptions?: {
-        suffixes?: string[];
-        prefixes?: string[];
-        includeNoise?: boolean;
-    }): void {
-        const X: number[][] = [], Y: number[][] = [];
+    public train(
+        augmentationOptions?: {
+            suffixes?: string[];
+            prefixes?: string[];
+            includeNoise?: boolean;
+        },
+        weights?: number[]
+    ): void {
+        const X: number[][] = [];
+        let Y: number[][] = [];
 
         this.categories.forEach((cat, i) => {
             const variants = Augment.generateVariants(cat, this.charSet, augmentationOptions);
@@ -186,17 +255,38 @@ export class ELM {
         const b = this.randomMatrix(this.hiddenUnits, 1);
         const tempH = Matrix.multiply(X, Matrix.transpose(W));
         const activationFn = Activations.get(this.activation);
-        const H = Activations.apply(tempH.map(row =>
-            row.map((val, j) => val + b[j][0])
-        ), activationFn);
+        let H = Activations.apply(
+            tempH.map(row => row.map((val, j) => val + b[j][0])),
+            activationFn
+        );
+
+        if (this.dropout > 0) {
+            const keepProb = 1 - this.dropout;
+            for (let i = 0; i < H.length; i++) {
+                for (let j = 0; j < H[0].length; j++) {
+                    if (Math.random() < this.dropout) {
+                        H[i][j] = 0;
+                    } else {
+                        H[i][j] /= keepProb;
+                    }
+                }
+            }
+        }
+
+        if (weights) {
+            if (weights.length !== H.length) {
+                throw new Error(`Weight array length ${weights.length} does not match sample count ${H.length}`);
+            }
+            // Scale each row of H and Y by sqrt(weight)
+            H = H.map((row, i) => row.map(x => x * Math.sqrt(weights[i])));
+            Y = Y.map((row, i) => row.map(x => x * Math.sqrt(weights[i])));
+        }
 
         const H_pinv = this.pseudoInverse(H);
         const beta = Matrix.multiply(H_pinv, Y);
         this.model = { W, b, beta };
 
         const predictions = Matrix.multiply(H, beta);
-        const results: Record<string, number> = {};
-        let allPassed = true;
 
         if (this.metrics) {
             const rmse = this.calculateRMSE(Y, predictions);
@@ -206,31 +296,29 @@ export class ELM {
             const ce = this.calculateCrossEntropy(Y, predictions);
             const r2 = this.calculateR2Score(Y, predictions);
 
+            const results: Record<string, number> = {};
+            let allPassed = true;
+
             if (this.metrics.rmse !== undefined) {
                 results.rmse = rmse;
                 if (rmse > this.metrics.rmse) allPassed = false;
             }
-
             if (this.metrics.mae !== undefined) {
                 results.mae = mae;
                 if (mae > this.metrics.mae) allPassed = false;
             }
-
             if (this.metrics.accuracy !== undefined) {
                 results.accuracy = acc;
                 if (acc < this.metrics.accuracy) allPassed = false;
             }
-
             if (this.metrics.f1 !== undefined) {
                 results.f1 = f1;
                 if (f1 < this.metrics.f1) allPassed = false;
             }
-
             if (this.metrics.crossEntropy !== undefined) {
                 results.crossEntropy = ce;
                 if (ce > this.metrics.crossEntropy) allPassed = false;
             }
-
             if (this.metrics.r2 !== undefined) {
                 results.r2 = r2;
                 if (r2 < this.metrics.r2) allPassed = false;
@@ -243,7 +331,6 @@ export class ELM {
             if (allPassed) {
                 this.savedModelJSON = JSON.stringify(this.model);
                 if (this.verbose) console.log("✅ Model passed thresholds and was saved to JSON.");
-
                 if (this.config.exportFileName) {
                     this.saveModelAsJSONFile(this.config.exportFileName);
                 }
@@ -251,7 +338,11 @@ export class ELM {
                 if (this.verbose) console.log("❌ Model not saved: One or more thresholds not met.");
             }
         } else {
-            throw new Error("No metrics defined in config. Please specify at least one metric to evaluate.");
+            this.savedModelJSON = JSON.stringify(this.model);
+            if (this.verbose) console.log("✅ Model trained with no metrics—saved by default.");
+            if (this.config.exportFileName) {
+                this.saveModelAsJSONFile(this.config.exportFileName);
+            }
         }
     }
 
@@ -417,5 +508,17 @@ export class ELM {
             }
         }
         return 1 - ssRes / ssTot;
+    }
+
+    computeHiddenLayer(X: number[][]): number[][] {
+        if (!this.model) throw new Error("Model not trained.");
+        const WX = Matrix.multiply(X, Matrix.transpose(this.model.W));
+        const WXb = WX.map(row => row.map((val, j) => val + this.model!.b[j][0]));
+        const activationFn = Activations.get(this.activation);
+        return WXb.map(row => row.map(activationFn));
+    }
+
+    getEmbedding(X: number[][]): number[][] {
+        return this.computeHiddenLayer(X);
     }
 }

@@ -28,12 +28,15 @@ export interface ELMConfig {
         verbose?: boolean,
         toFile?: boolean,
     }
-    logFileName?: string
+    logFileName?: string,
+    dropout?: number;
+    weightInit?: "uniform" | "xavier";
 }
 
-export const defaultConfig: Required<Pick<ELMConfig, 'hiddenUnits' | 'maxLen' | 'activation' | 'charSet' | 'useTokenizer' | 'tokenizerDelimiter'>> = {
+export const defaultConfig: Required<Pick<ELMConfig, 'hiddenUnits' | 'maxLen' | 'activation' | 'charSet' | 'useTokenizer' | 'tokenizerDelimiter' | 'weightInit'>> = {
     hiddenUnits: 50,
     maxLen: 30,
+    weightInit: "uniform",
     activation: 'relu',
     charSet: 'abcdefghijklmnopqrstuvwxyz',
     useTokenizer: false,

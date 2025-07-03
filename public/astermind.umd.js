@@ -4,8 +4,10 @@
     (global = typeof globalThis !== 'undefined' ? globalThis : global || self, factory(global.astermind = {}));
 })(this, (function (exports) { 'use strict';
 
-    // Matrix.ts - Matrix operations for ELM without external dependencies
     class Matrix {
+        constructor(data) {
+            this.data = data;
+        }
         static multiply(A, B) {
             const result = [];
             for (let i = 0; i < A.length; i++) {
@@ -27,8 +29,7 @@
             return Array.from({ length: size }, (_, i) => Array.from({ length: size }, (_, j) => (i === j ? 1 : 0)));
         }
         static addRegularization(A, lambda) {
-            const result = A.map((row, i) => row.map((val, j) => val + (i === j ? lambda : 0)));
-            return result;
+            return A.map((row, i) => row.map((val, j) => val + (i === j ? lambda : 0)));
         }
         static inverse(A) {
             const n = A.length;
@@ -63,6 +64,23 @@
                 }
             }
             return I;
+        }
+        static random(rows, cols, min, max) {
+            const data = [];
+            for (let i = 0; i < rows; i++) {
+                const row = [];
+                for (let j = 0; j < cols; j++) {
+                    row.push(Math.random() * (max - min) + min);
+                }
+                data.push(row);
+            }
+            return new Matrix(data);
+        }
+        static fromArray(array) {
+            return new Matrix(array);
+        }
+        toArray() {
+            return this.data;
         }
     }
 
@@ -263,7 +281,7 @@
     // ELM.ts - Core ELM logic with TypeScript types
     class ELM {
         constructor(config) {
-            var _a, _b, _c, _d, _e, _f, _g, _h;
+            var _a, _b, _c, _d, _e, _f, _g, _h, _j;
             const cfg = Object.assign(Object.assign({}, defaultConfig), config);
             this.categories = cfg.categories;
             this.hiddenUnits = cfg.hiddenUnits;
@@ -277,6 +295,7 @@
             this.verbose = (_d = (_c = cfg.log) === null || _c === void 0 ? void 0 : _c.verbose) !== null && _d !== void 0 ? _d : true;
             this.modelName = (_f = (_e = cfg.log) === null || _e === void 0 ? void 0 : _e.modelName) !== null && _f !== void 0 ? _f : 'Unnamed ELM Model';
             this.logToFile = (_h = (_g = cfg.log) === null || _g === void 0 ? void 0 : _g.toFile) !== null && _h !== void 0 ? _h : false;
+            this.dropout = (_j = cfg.dropout) !== null && _j !== void 0 ? _j : 0;
             this.encoder = new UniversalEncoder({
                 charSet: this.charSet,
                 maxLen: this.maxLen,
@@ -284,6 +303,8 @@
                 tokenizerDelimiter: this.tokenizerDelimiter,
                 mode: this.useTokenizer ? 'token' : 'char'
             });
+            this.inputWeights = Matrix.fromArray(this.randomMatrix(cfg.hiddenUnits, cfg.maxLen));
+            this.biases = Matrix.fromArray(this.randomMatrix(cfg.hiddenUnits, 1));
             this.model = null;
         }
         oneHot(n, index) {
@@ -297,7 +318,8 @@
             return Matrix.multiply(HtH_inv, Ht);
         }
         randomMatrix(rows, cols) {
-            return Array.from({ length: rows }, () => Array.from({ length: cols }, () => Math.random() * 2 - 1));
+            const limit = Math.sqrt(6 / (rows + cols));
+            return Array.from({ length: rows }, () => Array.from({ length: cols }, () => Math.random() * 2 * limit - limit));
         }
         setCategories(categories) {
             this.categories = categories;
@@ -314,12 +336,37 @@
                 console.error(`❌ Failed to load ${this.modelName} model from JSON:`, e);
             }
         }
-        trainFromData(X, Y) {
-            const W = this.randomMatrix(this.hiddenUnits, X[0].length);
-            const b = this.randomMatrix(this.hiddenUnits, 1);
+        trainFromData(X, Y, options) {
+            const reuseWeights = (options === null || options === void 0 ? void 0 : options.reuseWeights) === true;
+            let W, b;
+            if (reuseWeights && this.model) {
+                W = this.model.W;
+                b = this.model.b;
+                if (this.verbose)
+                    console.log("🔄 Reusing existing weights/biases for training.");
+            }
+            else {
+                W = this.randomMatrix(this.hiddenUnits, X[0].length);
+                b = this.randomMatrix(this.hiddenUnits, 1);
+                if (this.verbose)
+                    console.log("✨ Initializing fresh weights/biases for training.");
+            }
             const tempH = Matrix.multiply(X, Matrix.transpose(W));
             const activationFn = Activations.get(this.activation);
             const H = Activations.apply(tempH.map(row => row.map((val, j) => val + b[j][0])), activationFn);
+            if (this.dropout > 0) {
+                const keepProb = 1 - this.dropout;
+                for (let i = 0; i < H.length; i++) {
+                    for (let j = 0; j < H[0].length; j++) {
+                        if (Math.random() < this.dropout) {
+                            H[i][j] = 0;
+                        }
+                        else {
+                            H[i][j] /= keepProb;
+                        }
+                    }
+                }
+            }
             const H_pinv = this.pseudoInverse(H);
             const beta = Matrix.multiply(H_pinv, Y);
             this.model = { W, b, beta };
@@ -397,6 +444,19 @@
             const tempH = Matrix.multiply(X, Matrix.transpose(W));
             const activationFn = Activations.get(this.activation);
             const H = Activations.apply(tempH.map(row => row.map((val, j) => val + b[j][0])), activationFn);
+            if (this.dropout > 0) {
+                const keepProb = 1 - this.dropout;
+                for (let i = 0; i < H.length; i++) {
+                    for (let j = 0; j < H[0].length; j++) {
+                        if (Math.random() < this.dropout) {
+                            H[i][j] = 0;
+                        }
+                        else {
+                            H[i][j] /= keepProb; // Scale up to preserve expectation
+                        }
+                    }
+                }
+            }
             const H_pinv = this.pseudoInverse(H);
             const beta = Matrix.multiply(H_pinv, Y);
             this.model = { W, b, beta };
@@ -607,6 +667,17 @@
                 }
             }
             return 1 - ssRes / ssTot;
+        }
+        computeHiddenLayer(X) {
+            if (!this.model)
+                throw new Error("Model not trained.");
+            const WX = Matrix.multiply(X, Matrix.transpose(this.model.W));
+            const WXb = WX.map(row => row.map((val, j) => val + this.model.b[j][0]));
+            const activationFn = Activations.get(this.activation);
+            return WXb.map(row => row.map(activationFn));
+        }
+        getEmbedding(X) {
+            return this.computeHiddenLayer(X);
         }
     }
 

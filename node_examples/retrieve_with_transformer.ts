@@ -54,7 +54,6 @@ const SPECIAL_TOKENS = ["<PAD>", "<UNK>"];
 const allChars = new Set<string>(SPECIAL_TOKENS);
 texts.forEach(t => t.toLowerCase().split("").forEach(c => allChars.add(c)));
 const vocab = new Vocab([...allChars]);
-
 const transformer = new MiniTransformer(vocab);
 
 // Encode helper with fallback
@@ -62,7 +61,7 @@ function encodeSafe(text: string): number[] {
     return text
         .toLowerCase()
         .split("")
-        .map(c => vocab.tokenToIdx.get(c) ?? vocab.tokenToIdx.get("<UNK>")!);
+        .map(c => vocab.tokenToIdx[c] !== undefined ? vocab.tokenToIdx[c] : vocab.tokenToIdx["<UNK>"]);
 }
 
 const transformerEmbeddings = texts.map(t => transformer.encode(encodeSafe(t)));

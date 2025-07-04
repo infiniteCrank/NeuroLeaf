@@ -85,10 +85,6 @@ export class ELMTransformer {
         return result;
     }
 
-    private transpose(mat: number[][]): number[][] {
-        return mat[0].map((_, i) => mat.map(row => row[i]));
-    }
-
     private layerNorm(x: number[]): number[] {
         const mean = x.reduce((a, b) => a + b, 0) / x.length;
         const variance = x.reduce((sum, v) => sum + Math.pow(v - mean, 2), 0) / x.length;
@@ -108,10 +104,6 @@ export class ELMTransformer {
         return Array.from({ length: rows }, () =>
             Array.from({ length: cols }, () => Math.random() * 2 - 1)
         );
-    }
-
-    public initEmbedding(vocabSize: number): void {
-        this.embedding = this.randMatrix(vocabSize, this.config.embedDim);
     }
 
     private project(x: number[][], W: number[][]): number[][] {
@@ -138,19 +130,23 @@ export class ELMTransformer {
         return x.map(row => this.softmax(row));
     }
 
-    private multiHeadAttention(x: number[][], Wq: number[][][], Wk: number[][][], Wv: number[][][], Wout: number[][]): number[][] {
+    private multiHeadAttention(
+        x: number[][],
+        Wq: number[][][],
+        Wk: number[][][],
+        Wv: number[][][],
+        Wout: number[][]
+    ): number[][] {
         const heads: number[][][] = [];
         for (let h = 0; h < this.config.numHeads; h++) {
             const Q = this.project(x, Wq[h]);
             const K = this.project(x, Wk[h]);
             const V = this.project(x, Wv[h]);
-
             const scores = this.scaledDotProduct(Q, K);
             const weights = this.softmax2D(scores);
             const attention = this.matMatMul(weights, V);
             heads.push(attention);
         }
-
         const concat: number[][] = [];
         for (let i = 0; i < x.length; i++) {
             let row: number[] = [];
@@ -162,7 +158,14 @@ export class ELMTransformer {
         return this.project(concat, Wout);
     }
 
-    private feedForward(x: number[], W1: number[][], b1: number[], W2: number[][], b2: number[], training: boolean): number[] {
+    private feedForward(
+        x: number[],
+        W1: number[][],
+        b1: number[],
+        W2: number[][],
+        b2: number[],
+        training: boolean
+    ): number[] {
         const hidden = this.matVecMul(W1, x).map((v, i) => Math.max(0, v + b1[i]));
         const dropped = hidden.map(h => {
             if (training && this.config.dropout && Math.random() < this.config.dropout) return 0;
@@ -186,28 +189,21 @@ export class ELMTransformer {
         const attnOut = this.multiHeadAttention(x, Wq, Wk, Wv, Wout);
         const added1 = x.map((row, i) => this.addVec(row, attnOut[i]));
         const norm1 = added1.map(this.layerNorm);
-
         const ffOut = norm1.map(row =>
             this.feedForward(row, Wff1, bff1, Wff2, bff2, training)
         );
-
         const added2 = norm1.map((row, i) => this.addVec(row, ffOut[i]));
         const norm2 = added2.map(this.layerNorm);
-
         return norm2;
     }
 
     private encodeInput(text: string): number[][] {
         let vec = this.encoder.encode(text);
-
-        // Pad or truncate to embedDim
         if (vec.length < this.config.embedDim) {
             vec = vec.concat(Array(this.config.embedDim - vec.length).fill(0));
         } else if (vec.length > this.config.embedDim) {
             vec = vec.slice(0, this.config.embedDim);
         }
-
-        // Repeat this vector seqLen times
         return Array(this.config.seqLen).fill(vec);
     }
 
@@ -217,7 +213,6 @@ export class ELMTransformer {
         training = false
     ): number[] {
         let x = inputSeq.map((row, i) => this.addVec(row, this.posEnc[i]));
-
         for (let l = 0; l < this.config.numLayers; l++) {
             x = this.transformerBlock(
                 x,
@@ -232,8 +227,8 @@ export class ELMTransformer {
                 training
             );
         }
-
         const flat = this.flatten(x);
+        console.log(`transformerEncode() output (first 10): ${flat.slice(0, 10).map(v => v.toFixed(4)).join(", ")}`);
 
         if (flat.some(v => isNaN(v))) {
             console.error(`❌ NaN detected in transformerEncode output.`);
@@ -241,14 +236,10 @@ export class ELMTransformer {
             console.dir(inputSeq, { depth: null });
             console.error(`After positional encoding:`);
             console.dir(x, { depth: null });
-            console.error(`Transformer weights:`);
-            console.dir(weights, { depth: 1 });
             throw new Error(`NaN detected in transformerEncode output.`);
         }
-
         return flat;
     }
-
 
     public predict(text: string, topK = 3): PredictResult[] {
         const inputVec = this.encoder.encode(text);
@@ -261,8 +252,6 @@ export class ELMTransformer {
                 const chunk = Math.floor(elmEmbedding.length / this.config.seqLen);
                 for (let i = 0; i < this.config.seqLen; i++) {
                     let slice = elmEmbedding.slice(i * chunk, (i + 1) * chunk);
-
-                    // Pad to embedDim
                     if (slice.length < this.config.embedDim) {
                         slice = slice.concat(Array(this.config.embedDim - slice.length).fill(0));
                     } else if (slice.length > this.config.embedDim) {
@@ -270,12 +259,10 @@ export class ELMTransformer {
                     }
                     reshaped.push(slice);
                 }
-                const transformerVecA = this.transformerEncode(reshaped, this.transformerWeights);
-                return this.vectorToPrediction(transformerVecA, topK);
+                return this.vectorToPrediction(this.transformerEncode(reshaped, this.transformerWeights), topK);
 
             case ELMTransformerMode.TRANSFORMER_TO_ELM:
-                const transformerVecB = this.transformerEncode(inputSeq, this.transformerWeights);
-                return this.elm.predictFromVector([transformerVecB], topK)[0];
+                return this.elm.predictFromVector([this.transformerEncode(inputSeq, this.transformerWeights)], topK)[0];
 
             case ELMTransformerMode.PARAMETERIZE_ELM:
                 console.warn("[⚠️] PARAMETERIZE_ELM mode is experimental.");
@@ -285,8 +272,8 @@ export class ELMTransformer {
 
             case ELMTransformerMode.ENSEMBLE:
                 const elmPred = this.elm.predict(text, topK);
-                const tVecEnsemble = this.transformerEncode(inputSeq, this.transformerWeights);
-                const transformerPred = this.vectorToPrediction(tVecEnsemble, topK);
+                const tVecEns = this.transformerEncode(inputSeq, this.transformerWeights);
+                const transformerPred = this.vectorToPrediction(tVecEns, topK);
                 return elmPred.map((e, i) => ({
                     label: e.label,
                     prob: (e.prob + (transformerPred[i]?.prob || 0)) / 2
@@ -298,7 +285,6 @@ export class ELMTransformer {
     }
 
     private vectorToPrediction(vec: number[], topK: number): PredictResult[] {
-        if (vec.some(v => isNaN(v))) throw new Error(`NaN detected in vectorToPrediction input vector.`);
         const probs = this.softmax(vec);
         return probs
             .map((p, i) => ({
@@ -327,7 +313,7 @@ export class ELMTransformer {
         this.elm.setCategories(Array.from(new Set(trainPairs.map(p => p.label))));
         const X = trainPairs.map(p => this.encoder.normalize(this.encoder.encode(p.input)));
         const Y = trainPairs.map(p => this.elm.oneHot(this.elm.categories.length, this.elm.categories.indexOf(p.label)));
-        this.elm.trainFromData(X, Y);
+        this.elm.trainFromData(X, Y, { reuseWeights: true });
         console.info("✅ ELM training complete.");
     }
 
@@ -340,10 +326,13 @@ export class ELMTransformer {
                 const reshaped: number[][] = [];
                 const chunk = Math.floor(elmEmbedding.length / this.config.seqLen);
                 for (let i = 0; i < this.config.seqLen; i++) {
-                    const slice = elmEmbedding.slice(i * chunk, (i + 1) * chunk);
-                    reshaped.push(slice.length < chunk
-                        ? slice.concat(Array(chunk - slice.length).fill(0))
-                        : slice);
+                    let slice = elmEmbedding.slice(i * chunk, (i + 1) * chunk);
+                    if (slice.length < this.config.embedDim) {
+                        slice = slice.concat(Array(this.config.embedDim - slice.length).fill(0));
+                    } else if (slice.length > this.config.embedDim) {
+                        slice = slice.slice(0, this.config.embedDim);
+                    }
+                    reshaped.push(slice);
                 }
                 return this.transformerEncode(reshaped, this.transformerWeights);
             default:

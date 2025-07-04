@@ -47,8 +47,14 @@ import { ELMTransformer, ELMTransformerMode } from "../src/core/ELMTransformer";
                 label: rLabels[j],
                 score: cosineSimilarity(query[i], emb)
             }));
+            // Diagnostic: cosine similarity distribution
+            console.log(`\nQuery ${i} similarities:`);
+            scores.slice(0, 10).forEach(s =>
+                console.log(`  Label=${s.label}  Score=${s.score.toFixed(4)}`)
+            );
             scores.sort((a, b) => b.score - a.score);
             const ranked = scores.map(s => s.label);
+            console.log(`Top 5 labels for Query ${i}: ${ranked.slice(0, 5).join(", ")}`);
             if (ranked[0] === qLabels[i]) hitsAt1++;
             if (ranked.slice(0, k).includes(qLabels[i])) hitsAtK++;
             const rank = ranked.indexOf(qLabels[i]);
@@ -103,6 +109,9 @@ import { ELMTransformer, ELMTransformerMode } from "../src/core/ELMTransformer";
                     console.log(`  ⏳ Generating query embeddings...`);
                     const queryEmbeddings = texts.slice(0, splitIdx).map(t => {
                         const e = l2normalize(transformer.getEmbedding(t));
+                        // Diagnostic: embedding norm
+                        const norm = Math.sqrt(e.reduce((s, x) => s + x * x, 0));
+                        console.log(`Embedding norm: ${norm.toFixed(6)}`);
                         if (e.some(v => Number.isNaN(v))) {
                             console.error(`❌ NaN embedding detected in query: ${t}`);
                             process.exit(1);

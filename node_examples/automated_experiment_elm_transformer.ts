@@ -1,4 +1,3 @@
-// automated_experiment_elm_transformer.ts
 import fs from "fs";
 import { parse } from "csv-parse/sync";
 import { pipeline } from "@xenova/transformers";
@@ -6,6 +5,7 @@ import { ELMTransformer, ELMTransformerMode } from "../src/core/ELMTransformer";
 import { ELMConfig } from "../src/core/ELMConfig";
 
 (async () => {
+    // Load CSV data
     const csvFile = fs.readFileSync("../public/ag-news-classification-dataset/train.csv", "utf8");
     const raw = parse(csvFile, { skip_empty_lines: true }) as string[][];
     const records = raw.map(row => ({ text: row[1].trim(), label: row[0].trim() }));
@@ -21,6 +21,7 @@ import { ELMConfig } from "../src/core/ELMConfig";
     const splitIdx = Math.floor(texts.length * 0.2);
     const queryLabels = labels.slice(0, splitIdx);
     const refLabels = labels.slice(splitIdx);
+
     const queryBERT = bertEmbeddings.slice(0, splitIdx);
     const refBERT = bertEmbeddings.slice(splitIdx);
 
@@ -84,20 +85,33 @@ import { ELMConfig } from "../src/core/ELMConfig";
                             hiddenUnits: 64,
                             maxLen: 50,
                             activation: "relu",
-                            log: { modelName: "ELM", verbose: false }
+                            log: { modelName: "ELM", verbose: true }, // Verbose enabled!
                         }
                     });
 
+                    // Prepare training pairs
                     const trainPairs = records.slice(splitIdx).map(r => ({ input: r.text, label: r.label }));
+
+                    console.log(`  ⏳ Training on ${trainPairs.length} samples...`);
                     transformer.train(trainPairs);
 
-                    const embeddings: number[][] = texts.slice(0, splitIdx).map(t => l2normalize(transformer.getEmbedding(t)));
+                    // Embeddings for query and reference sets
+                    console.log(`  ⏳ Generating embeddings for queries...`);
+                    const queryEmbeddings = texts.slice(0, splitIdx).map(t => {
+                        const emb = transformer.getEmbedding(t);
+                        console.log(`    Embedding sample: [${emb.slice(0, 5).map(x => x.toFixed(4)).join(", ")}...]`);
+                        return l2normalize(emb);
+                    });
 
-                    const refEmbeddings: number[][] = texts.slice(splitIdx).map(t => l2normalize(transformer.getEmbedding(t)));
+                    console.log(`  ⏳ Generating embeddings for references...`);
+                    const refEmbeddings = texts.slice(splitIdx).map(t => l2normalize(transformer.getEmbedding(t)));
 
-                    const metrics = evaluateRecallMRR(embeddings, refEmbeddings, queryLabels, refLabels, 5);
+                    // Evaluate
+                    const metrics = evaluateRecallMRR(queryEmbeddings, refEmbeddings, queryLabels, refLabels, 5);
 
                     csvLines.push(`${mode},${embedDim},${dropout},${run},${metrics.recall1.toFixed(4)},${metrics.recallK.toFixed(4)},${metrics.mrr.toFixed(4)}`);
+
+                    console.log(`  ✅ Metrics: Recall@1=${metrics.recall1.toFixed(4)}, Recall@5=${metrics.recallK.toFixed(4)}, MRR=${metrics.mrr.toFixed(4)}`);
                 }
             }
         }

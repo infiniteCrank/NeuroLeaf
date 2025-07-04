@@ -20,9 +20,9 @@ const epochs = 10;
 
 // === Vocabulary ===
 export class Vocab {
-    tokens: string[];
-    tokenToIdx: Map<string, number>;
-    idxToToken: Map<number, string>;
+    public tokens: string[];
+    public tokenToIdx: Map<string, number>;
+    public idxToToken: Map<number, string>;
 
     constructor(tokens: string[]) {
         this.tokens = tokens;

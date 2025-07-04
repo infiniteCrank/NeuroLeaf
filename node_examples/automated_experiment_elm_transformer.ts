@@ -1,11 +1,11 @@
+// automated_experiment_elm_transformer.ts
 import fs from "fs";
 import { parse } from "csv-parse/sync";
 import { pipeline } from "@xenova/transformers";
 import { ELMTransformer, ELMTransformerMode } from "../src/core/ELMTransformer";
-import { ELMConfig } from "../src/core/ELMConfig";
 
 (async () => {
-    // Load CSV data
+    // Load dataset
     const csvFile = fs.readFileSync("../public/ag-news-classification-dataset/train.csv", "utf8");
     const raw = parse(csvFile, { skip_empty_lines: true }) as string[][];
     const records = raw.map(row => ({ text: row[1].trim(), label: row[0].trim() }));
@@ -22,8 +22,16 @@ import { ELMConfig } from "../src/core/ELMConfig";
     const queryLabels = labels.slice(0, splitIdx);
     const refLabels = labels.slice(splitIdx);
 
-    const queryBERT = bertEmbeddings.slice(0, splitIdx);
-    const refBERT = bertEmbeddings.slice(splitIdx);
+    const modes = [
+        ELMTransformerMode.ELM_TO_TRANSFORMER,
+        ELMTransformerMode.TRANSFORMER_TO_ELM,
+        ELMTransformerMode.PARAMETERIZE_ELM,
+        ELMTransformerMode.ENSEMBLE
+    ];
+
+    const embedDims = [32, 64];
+    const dropouts = [0.0, 0.05];
+    const repeats = 2;
 
     function cosineSimilarity(a: number[], b: number[]): number {
         const dot = a.reduce((sum, ai, i) => sum + ai * b[i], 0);
@@ -49,23 +57,20 @@ import { ELMConfig } from "../src/core/ELMConfig";
         return { recall1: hitsAt1 / query.length, recallK: hitsAtK / query.length, mrr: reciprocalRanks / query.length };
     }
 
-    const csvLines = ["mode,embedDim,dropout,run,recall_at_1,recall_at_5,mrr"];
-
-    const modes = [
-        ELMTransformerMode.ELM_TO_TRANSFORMER,
-        ELMTransformerMode.TRANSFORMER_TO_ELM,
-        ELMTransformerMode.PARAMETERIZE_ELM,
-        ELMTransformerMode.ENSEMBLE
-    ];
-
-    const embedDims = [32, 64];
-    const dropouts = [0.0, 0.05];
-    const repeats = 2;
-
     function l2normalize(v: number[]): number[] {
         const norm = Math.sqrt(v.reduce((s, x) => s + x * x, 0));
         return norm === 0 ? v : v.map(x => x / norm);
     }
+
+    function checkNaNMatrix(mat: number[][], label: string) {
+        const anyNaN = mat.some(row => row.some(v => Number.isNaN(v)));
+        if (anyNaN) {
+            console.error(`❌ NaN detected in matrix: ${label}`);
+            process.exit(1);
+        }
+    }
+
+    const csvLines = ["mode,embedDim,dropout,run,recall_at_1,recall_at_5,mrr"];
 
     for (const mode of modes) {
         for (const embedDim of embedDims) {
@@ -85,30 +90,44 @@ import { ELMConfig } from "../src/core/ELMConfig";
                             hiddenUnits: 64,
                             maxLen: 50,
                             activation: "relu",
-                            log: { modelName: "ELM", verbose: true }, // Verbose enabled!
+                            metrics: { rmse: 1e6 },
+                            log: { modelName: "ELM", verbose: true },
                         }
                     });
 
-                    // Prepare training pairs
                     const trainPairs = records.slice(splitIdx).map(r => ({ input: r.text, label: r.label }));
 
-                    console.log(`  ⏳ Training on ${trainPairs.length} samples...`);
+                    console.log(`  ⏳ Encoding training data...`);
+                    const XTrain = trainPairs.map(p => transformer.getEmbedding(p.input));
+                    checkNaNMatrix(XTrain, "XTrain embeddings before train()");
+                    console.log(`  ✅ Training data encoding stats:`);
+                    console.log(`    Example embedding: ${XTrain[0].slice(0, 5).map(x => x.toFixed(4)).join(", ")}...`);
+
+                    console.log(`  ⏳ Training...`);
                     transformer.train(trainPairs);
 
-                    // Embeddings for query and reference sets
-                    console.log(`  ⏳ Generating embeddings for queries...`);
+                    console.log(`  ⏳ Generating query embeddings...`);
                     const queryEmbeddings = texts.slice(0, splitIdx).map(t => {
-                        const emb = transformer.getEmbedding(t);
-                        console.log(`    Embedding sample: [${emb.slice(0, 5).map(x => x.toFixed(4)).join(", ")}...]`);
-                        return l2normalize(emb);
+                        const e = l2normalize(transformer.getEmbedding(t));
+                        if (e.some(v => Number.isNaN(v))) {
+                            console.error(`❌ NaN embedding detected in query: ${t}`);
+                            process.exit(1);
+                        }
+                        console.log(`    Embedding sample: [${e.slice(0, 5).map(x => x.toFixed(4)).join(", ")}...]`);
+                        return e;
                     });
 
-                    console.log(`  ⏳ Generating embeddings for references...`);
-                    const refEmbeddings = texts.slice(splitIdx).map(t => l2normalize(transformer.getEmbedding(t)));
+                    console.log(`  ⏳ Generating reference embeddings...`);
+                    const refEmbeddings = texts.slice(splitIdx).map(t => {
+                        const e = l2normalize(transformer.getEmbedding(t));
+                        if (e.some(v => Number.isNaN(v))) {
+                            console.error(`❌ NaN embedding detected in reference: ${t}`);
+                            process.exit(1);
+                        }
+                        return e;
+                    });
 
-                    // Evaluate
                     const metrics = evaluateRecallMRR(queryEmbeddings, refEmbeddings, queryLabels, refLabels, 5);
-
                     csvLines.push(`${mode},${embedDim},${dropout},${run},${metrics.recall1.toFixed(4)},${metrics.recallK.toFixed(4)},${metrics.mrr.toFixed(4)}`);
 
                     console.log(`  ✅ Metrics: Recall@1=${metrics.recall1.toFixed(4)}, Recall@5=${metrics.recallK.toFixed(4)}, MRR=${metrics.mrr.toFixed(4)}`);

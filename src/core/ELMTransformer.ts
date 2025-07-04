@@ -222,4 +222,195 @@ export class ELMTransformer {
         return this.project(concat, Wout);
     }
 
+    /**
+ * Feedforward network (2 layers with ReLU).
+ */
+    private feedForward(
+        x: number[],
+        W1: number[][],
+        b1: number[],
+        W2: number[][],
+        b2: number[],
+        training: boolean
+    ): number[] {
+        // Layer 1
+        const hidden = this.matVecMul(W1, x).map((v, i) => Math.max(0, v + b1[i]));
+        // Dropout
+        const dropped = hidden.map(h => {
+            if (training && this.config.dropout && Math.random() < this.config.dropout) return 0;
+            return h;
+        });
+        // Layer 2
+        return this.addVec(this.matVecMul(W2, dropped), b2);
+    }
+
+    /**
+     * Transformer block with residual connections.
+     */
+    private transformerBlock(
+        x: number[][],
+        Wq: number[][][],
+        Wk: number[][][],
+        Wv: number[][][],
+        Wout: number[][],
+        Wff1: number[][],
+        bff1: number[],
+        Wff2: number[][],
+        bff2: number[],
+        training: boolean
+    ): number[][] {
+        // Multi-head attention
+        const attnOut = this.multiHeadAttention(x, Wq, Wk, Wv, Wout);
+        // Add & norm
+        const added1 = x.map((row, i) => this.addVec(row, attnOut[i]));
+        const norm1 = added1.map(this.layerNorm);
+
+        // Feedforward
+        const ffOut = norm1.map(row =>
+            this.feedForward(row, Wff1, bff1, Wff2, bff2, training)
+        );
+
+        // Add & norm
+        const added2 = norm1.map((row, i) => this.addVec(row, ffOut[i]));
+        const norm2 = added2.map(this.layerNorm);
+
+        return norm2;
+    }
+    /**
+     * Encodes raw text into numeric sequence vectors.
+     */
+    private encodeInput(text: string): number[][] {
+        const vec = this.encoder.encode(text);
+        const split: number[][] = [];
+        const dim = this.config.embedDim / this.config.numHeads;
+        for (let i = 0; i < this.config.seqLen; i++) {
+            // Split into smaller chunks per position
+            const start = i * dim;
+            const end = start + dim;
+            split.push(vec.slice(start, end));
+        }
+        return split;
+    }
+
+    /**
+     * Transformer forward pass for a single input.
+     */
+    private transformerEncode(
+        inputSeq: number[][],
+        weights: {
+            Wq: number[][][],
+            Wk: number[][][],
+            Wv: number[][][],
+            Wout: number[][],
+            Wff1: number[][],
+            bff1: number[],
+            Wff2: number[][],
+            bff2: number[]
+        },
+        training: boolean = false
+    ): number[] {
+        let x = inputSeq.map((row, i) => this.addVec(row, this.posEnc[i]));
+        for (let l = 0; l < this.config.numLayers; l++) {
+            x = this.transformerBlock(
+                x,
+                weights.Wq,
+                weights.Wk,
+                weights.Wv,
+                weights.Wout,
+                weights.Wff1,
+                weights.bff1,
+                weights.Wff2,
+                weights.bff2,
+                training
+            );
+        }
+        return this.flatten(x);
+    }
+
+    /**
+     * Predict function combining ELM and Transformer according to mode.
+     */
+    public predict(text: string, topK = 3): PredictResult[] {
+        // Encode
+        const inputVec = this.encoder.encode(text);
+        const inputSeq = this.encodeInput(text);
+
+        switch (this.config.mode) {
+            case ELMTransformerMode.ELM_TO_TRANSFORMER:
+                // 1) ELM embedding
+                const elmEmbedding = this.elm.getEmbedding([inputVec])[0];
+                // 2) Reshape to sequence
+                const reshaped: number[][] = [];
+                const chunk = Math.floor(elmEmbedding.length / this.config.seqLen);
+                for (let i = 0; i < this.config.seqLen; i++) {
+                    reshaped.push(elmEmbedding.slice(i * chunk, (i + 1) * chunk));
+                }
+                // 3) Transformer encode
+                const transformerVecA = this.transformerEncode(reshaped, this.initTransformerWeights());
+                // 4) Softmax over categories
+                return this.vectorToPrediction(transformerVecA, topK);
+
+            case ELMTransformerMode.TRANSFORMER_TO_ELM:
+                // 1) Transformer encode
+                const transformerVecB = this.transformerEncode(inputSeq, this.initTransformerWeights());
+                // 2) ELM prediction
+                return this.elm.predictFromVector([transformerVecB], topK)[0];
+
+            case ELMTransformerMode.PARAMETERIZE_ELM:
+                // Experimental: transform output modulates ELM weights
+                console.warn("[⚠️] PARAMETERIZE_ELM mode is experimental and may not work as expected.");
+                const tVec = this.transformerEncode(inputSeq, this.initTransformerWeights());
+                const modulated = inputVec.map((v, i) => v * (1 + 0.01 * (tVec[i % tVec.length] || 0)));
+                return this.elm.predictFromVector([modulated], topK)[0];
+
+            case ELMTransformerMode.ENSEMBLE:
+                // 1) ELM
+                const elmPred = this.elm.predict(text, topK);
+                // 2) Transformer
+                const tVecEnsemble = this.transformerEncode(inputSeq, this.initTransformerWeights());
+                const transformerPred = this.vectorToPrediction(tVecEnsemble, topK);
+                // 3) Average probabilities
+                return elmPred.map((e, i) => ({
+                    label: e.label,
+                    prob: (e.prob + (transformerPred[i]?.prob || 0)) / 2
+                }));
+
+            default:
+                throw new Error(`Unknown mode: ${this.config.mode}`);
+        }
+    }
+
+    /**
+     * Converts a vector into predictions over categories.
+     */
+    private vectorToPrediction(vec: number[], topK: number): PredictResult[] {
+        const probs = this.softmax(vec);
+        return probs
+            .map((p, i) => ({
+                label: this.elm.categories[i] || `class_${i}`,
+                prob: p
+            }))
+            .sort((a, b) => b.prob - a.prob)
+            .slice(0, topK);
+    }
+
+    /**
+     * Dummy transformer weights initializer.
+     * In a real setup you would want to store and train these.
+     */
+    private initTransformerWeights() {
+        const d = this.config.embedDim;
+        return {
+            Wq: Array.from({ length: this.config.numHeads }, () => this.randMatrix(d, d / this.config.numHeads)),
+            Wk: Array.from({ length: this.config.numHeads }, () => this.randMatrix(d, d / this.config.numHeads)),
+            Wv: Array.from({ length: this.config.numHeads }, () => this.randMatrix(d, d / this.config.numHeads)),
+            Wout: this.randMatrix(d, d),
+            Wff1: this.randMatrix(d, d),
+            bff1: Array(d).fill(0),
+            Wff2: this.randMatrix(d, d),
+            bff2: Array(d).fill(0),
+        };
+    }
+
+
 }

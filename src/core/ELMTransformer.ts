@@ -412,5 +412,79 @@ export class ELMTransformer {
         };
     }
 
+    /**
+ * Train the ELM on labeled data.
+ * For now, this trains only the ELM part.
+ */
+    public train(
+        trainPairs: { input: string; label: string }[],
+        augmentationOptions?: {
+            suffixes?: string[];
+            prefixes?: string[];
+            includeNoise?: boolean;
+        }
+    ): void {
+        // This uses the ELM's built-in training pipeline.
+        this.elm.setCategories(
+            Array.from(new Set(trainPairs.map(p => p.label)))
+        );
+
+        // Auto-generate training matrix
+        const X: number[][] = [];
+        const Y: number[][] = [];
+        for (const { input, label } of trainPairs) {
+            const vec = this.encoder.normalize(this.encoder.encode(input));
+            const labelIndex = this.elm.categories.indexOf(label);
+            X.push(vec);
+            Y.push(this.elm.oneHot(this.elm.categories.length, labelIndex));
+        }
+
+        this.elm.trainFromData(X, Y);
+
+        console.info("✅ ELM training complete.");
+    }
+
+    /**
+     * Get an embedding for text.
+     * Depending on mode, returns ELM or Transformer embeddings.
+     */
+    public getEmbedding(text: string): number[] {
+        const inputVec = this.encoder.encode(text);
+        const inputSeq = this.encodeInput(text);
+
+        switch (this.config.mode) {
+            case ELMTransformerMode.ELM_TO_TRANSFORMER:
+                const elmEmbedding = this.elm.getEmbedding([inputVec])[0];
+                const reshaped: number[][] = [];
+                const chunk = Math.floor(elmEmbedding.length / this.config.seqLen);
+                for (let i = 0; i < this.config.seqLen; i++) {
+                    reshaped.push(elmEmbedding.slice(i * chunk, (i + 1) * chunk));
+                }
+                return this.transformerEncode(reshaped, this.initTransformerWeights(), false);
+
+            case ELMTransformerMode.TRANSFORMER_TO_ELM:
+            case ELMTransformerMode.PARAMETERIZE_ELM:
+            case ELMTransformerMode.ENSEMBLE:
+                return this.transformerEncode(inputSeq, this.initTransformerWeights(), false);
+
+            default:
+                throw new Error(`Unknown mode: ${this.config.mode}`);
+        }
+    }
+
+    /**
+     * Save the ELM model.
+     */
+    public saveModelAsJSONFile(filename?: string): void {
+        this.elm.saveModelAsJSONFile(filename);
+    }
+
+    /**
+     * Load the ELM model.
+     */
+    public loadModelFromJSON(json: string): void {
+        this.elm.loadModelFromJSON(json);
+    }
+
 
 }

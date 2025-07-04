@@ -97,12 +97,6 @@ import { ELMTransformer, ELMTransformerMode } from "../src/core/ELMTransformer";
 
                     const trainPairs = records.slice(splitIdx).map(r => ({ input: r.text, label: r.label }));
 
-                    console.log(`  ⏳ Encoding training data...`);
-                    const XTrain = trainPairs.map(p => transformer.getEmbedding(p.input));
-                    checkNaNMatrix(XTrain, "XTrain embeddings before train()");
-                    console.log(`  ✅ Training data encoding stats:`);
-                    console.log(`    Example embedding: ${XTrain[0].slice(0, 5).map(x => x.toFixed(4)).join(", ")}...`);
-
                     console.log(`  ⏳ Training...`);
                     transformer.train(trainPairs);
 

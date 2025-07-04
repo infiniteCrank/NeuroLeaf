@@ -1,0 +1,110 @@
+// automated_experiment_elm_transformer.ts
+import fs from "fs";
+import { parse } from "csv-parse/sync";
+import { pipeline } from "@xenova/transformers";
+import { ELMTransformer, ELMTransformerMode } from "../src/core/ELMTransformer";
+import { ELMConfig } from "../src/core/ELMConfig";
+
+(async () => {
+    const csvFile = fs.readFileSync("../public/ag-news-classification-dataset/train.csv", "utf8");
+    const raw = parse(csvFile, { skip_empty_lines: true }) as string[][];
+    const records = raw.map(row => ({ text: row[1].trim(), label: row[0].trim() }));
+    const sampleSize = 500;
+    const texts = records.slice(0, sampleSize).map(r => r.text);
+    const labels = records.slice(0, sampleSize).map(r => r.label);
+
+    console.log(`⏳ Loading Sentence-BERT...`);
+    const embedder = await pipeline("feature-extraction", "Xenova/all-MiniLM-L6-v2");
+    const bertTensor = await embedder(texts, { pooling: "mean" });
+    const bertEmbeddings = bertTensor.tolist() as number[][];
+
+    const splitIdx = Math.floor(texts.length * 0.2);
+    const queryLabels = labels.slice(0, splitIdx);
+    const refLabels = labels.slice(splitIdx);
+    const queryBERT = bertEmbeddings.slice(0, splitIdx);
+    const refBERT = bertEmbeddings.slice(splitIdx);
+
+    function cosineSimilarity(a: number[], b: number[]): number {
+        const dot = a.reduce((sum, ai, i) => sum + ai * b[i], 0);
+        const normA = Math.sqrt(a.reduce((s, ai) => s + ai * ai, 0));
+        const normB = Math.sqrt(b.reduce((s, bi) => s + bi * bi, 0));
+        return normA && normB ? dot / (normA * normB) : 0;
+    }
+
+    function evaluateRecallMRR(query: number[][], reference: number[][], qLabels: string[], rLabels: string[], k: number) {
+        let hitsAt1 = 0, hitsAtK = 0, reciprocalRanks = 0;
+        for (let i = 0; i < query.length; i++) {
+            const scores = reference.map((emb, j) => ({
+                label: rLabels[j],
+                score: cosineSimilarity(query[i], emb)
+            }));
+            scores.sort((a, b) => b.score - a.score);
+            const ranked = scores.map(s => s.label);
+            if (ranked[0] === qLabels[i]) hitsAt1++;
+            if (ranked.slice(0, k).includes(qLabels[i])) hitsAtK++;
+            const rank = ranked.indexOf(qLabels[i]);
+            reciprocalRanks += rank === -1 ? 0 : 1 / (rank + 1);
+        }
+        return { recall1: hitsAt1 / query.length, recallK: hitsAtK / query.length, mrr: reciprocalRanks / query.length };
+    }
+
+    const csvLines = ["mode,embedDim,dropout,run,recall_at_1,recall_at_5,mrr"];
+
+    const modes = [
+        ELMTransformerMode.ELM_TO_TRANSFORMER,
+        ELMTransformerMode.TRANSFORMER_TO_ELM,
+        ELMTransformerMode.PARAMETERIZE_ELM,
+        ELMTransformerMode.ENSEMBLE
+    ];
+
+    const embedDims = [32, 64];
+    const dropouts = [0.0, 0.05];
+    const repeats = 2;
+
+    function l2normalize(v: number[]): number[] {
+        const norm = Math.sqrt(v.reduce((s, x) => s + x * x, 0));
+        return norm === 0 ? v : v.map(x => x / norm);
+    }
+
+    for (const mode of modes) {
+        for (const embedDim of embedDims) {
+            for (const dropout of dropouts) {
+                for (let run = 1; run <= repeats; run++) {
+                    console.log(`\n🔹 Testing Mode: ${mode}, embedDim=${embedDim}, dropout=${dropout}, Run=${run}`);
+
+                    const transformer = new ELMTransformer({
+                        mode,
+                        embedDim,
+                        seqLen: 8,
+                        numHeads: 2,
+                        numLayers: 1,
+                        dropout,
+                        elmConfig: {
+                            categories: Array.from(new Set(labels)),
+                            hiddenUnits: 64,
+                            maxLen: 50,
+                            activation: "relu",
+                            log: { modelName: "ELM", verbose: false }
+                        }
+                    });
+
+                    const trainPairs = records.slice(splitIdx).map(r => ({ input: r.text, label: r.label }));
+                    transformer.train(trainPairs);
+
+                    const embeddings: number[][] = texts.slice(0, splitIdx).map(t => l2normalize(transformer.getEmbedding(t)));
+
+                    const refEmbeddings: number[][] = texts.slice(splitIdx).map(t => l2normalize(transformer.getEmbedding(t)));
+
+                    const metrics = evaluateRecallMRR(embeddings, refEmbeddings, queryLabels, refLabels, 5);
+
+                    csvLines.push(`${mode},${embedDim},${dropout},${run},${metrics.recall1.toFixed(4)},${metrics.recallK.toFixed(4)},${metrics.mrr.toFixed(4)}`);
+                }
+            }
+        }
+    }
+
+    const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+    const filename = `automated_experiment_elm_transformer_${timestamp}.csv`;
+    fs.writeFileSync(filename, csvLines.join("\n"));
+    console.log(`\n✅ Experiment complete. Results saved to ${filename}.`);
+})();

@@ -37,7 +37,7 @@ export class ELMTransformer {
         this.elm = new ELM(config.elmConfig);
         this.encoder = new UniversalEncoder({
             maxLen: config.seqLen,
-            charSet: config.elmConfig.charSet,
+            charSet: config.elmConfig.charSet ?? "abcdefghijklmnopqrstuvwxyz",
             mode: "char",
         });
         this.posEnc = this.positionalEncoding(config.seqLen, config.embedDim);

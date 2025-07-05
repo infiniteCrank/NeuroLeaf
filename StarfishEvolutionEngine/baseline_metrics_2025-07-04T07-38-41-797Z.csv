@@ -1,0 +1,11 @@
+module_id,recall_at_1,mean_cosine_top5
+ELM_0,0,0.6485
+ELM_1,0,0.7302
+ELM_2,0,0.7375
+ELM_3,0,0.7576
+ELM_4,0,0.7455
+Transformer_0,0,0.9884
+Transformer_1,0,0.9901
+Transformer_2,0,0.9944
+Transformer_3,0,0.9899
+Transformer_4,0,0.9923

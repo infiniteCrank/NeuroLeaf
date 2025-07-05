@@ -149,22 +149,46 @@ export class ModulePool {
             bus.broadcast(humanSignal);
             mod.emittedSignalIds.push(humanSignal.id);
 
-            // 3️⃣ Synthetic signal
-            const syntheticVector = Array.from(
-                { length: internalVector.length },
-                () => Math.random() * 2 - 1
-            );
-            const syntheticSignal: Signal = {
-                id: `${mod.id}-synthetic-${now}`,
-                sourceModuleId: mod.id,
-                vector: syntheticVector,
-                timestamp: now,
-                metadata: {
-                    role: "synthetic"
+            // 3️⃣ Synthetic signal with 30% probability
+            if (Math.random() < 0.3) {
+                let syntheticVector: number[];
+
+                // 50% chance random, 50% recombined
+                if (Math.random() < 0.5) {
+                    // Random vector
+                    syntheticVector = Array.from(
+                        { length: internalVector.length },
+                        () => Math.random() * 2 - 1
+                    );
+                    console.log(`🌱 ${mod.id} emitting RANDOM synthetic signal.`);
+                } else if (mod.signalHistory.length > 0) {
+                    // Recombine past signals
+                    const vectorsToCombine = mod.signalHistory
+                        .slice(-5) // take up to 5 most recent
+                        .map((s) => s.vector);
+                    syntheticVector = this.averageVectors(vectorsToCombine);
+                    console.log(`🌿 ${mod.id} emitting RECOMBINED synthetic signal.`);
+                } else {
+                    // Fallback to random if no history
+                    syntheticVector = Array.from(
+                        { length: internalVector.length },
+                        () => Math.random() * 2 - 1
+                    );
+                    console.log(`🌱 ${mod.id} emitting fallback RANDOM synthetic signal.`);
                 }
-            };
-            bus.broadcast(syntheticSignal);
-            mod.emittedSignalIds.push(syntheticSignal.id);
+
+                const syntheticSignal: Signal = {
+                    id: `${mod.id}-synthetic-${now}`,
+                    sourceModuleId: mod.id,
+                    vector: syntheticVector,
+                    timestamp: now,
+                    metadata: {
+                        role: "synthetic"
+                    }
+                };
+                bus.broadcast(syntheticSignal);
+                mod.emittedSignalIds.push(syntheticSignal.id);
+            }
         }
     }
 

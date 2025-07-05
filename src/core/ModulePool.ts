@@ -124,43 +124,46 @@ export class ModulePool {
         for (const mod of this.modules) {
             const now = Date.now();
 
-            // 1️⃣ Internal
+            // 1️⃣ Internal signal
             const internalVector = vectorizer.vectorize(`Embedding from ${mod.id}`);
             bus.broadcast({
                 id: `${mod.id}-internal-${now}`,
                 sourceModuleId: mod.id,
                 vector: internalVector,
                 timestamp: now,
-                metadata: { role: "internal" }
+                metadata: { role: "internal", parents: [] }
             });
             mod.emittedSignalIds.push(`${mod.id}-internal-${now}`);
 
-            // 2️⃣ Human
+            // 2️⃣ Human signal
             const humanVector = vectorizer.vectorize(`Message from ${mod.id}`);
             bus.broadcast({
                 id: `${mod.id}-human-${now}`,
                 sourceModuleId: mod.id,
                 vector: humanVector,
                 timestamp: now,
-                metadata: { role: "human" }
+                metadata: { role: "human", parents: [] }
             });
             mod.emittedSignalIds.push(`${mod.id}-human-${now}`);
 
             // 3️⃣ Synthetic (30% chance)
             if (Math.random() < 0.3) {
                 let syntheticVector: number[];
+                let parentIds: string[] = [];
+
                 if (Math.random() < 0.5) {
+                    // Random vector
                     syntheticVector = Array.from(
                         { length: internalVector.length },
                         () => Math.random() * 2 - 1
                     );
                     console.log(`🌱 ${mod.id} emitted RANDOM synthetic signal.`);
                 } else if (mod.signalHistory.length > 0) {
-                    const vectorsToCombine = mod.signalHistory
-                        .slice(-5)
-                        .map((s) => s.vector);
-                    syntheticVector = this.averageVectors(vectorsToCombine);
-                    console.log(`🌿 ${mod.id} emitted RECOMBINED synthetic signal.`);
+                    // Recombine last 5 signals
+                    const signalsToCombine = mod.signalHistory.slice(-5);
+                    syntheticVector = this.averageVectors(signalsToCombine.map(s => s.vector));
+                    parentIds = signalsToCombine.map(s => s.id);
+                    console.log(`🌿 ${mod.id} emitted RECOMBINED synthetic signal from ${parentIds.length} parents.`);
                 } else {
                     syntheticVector = Array.from(
                         { length: internalVector.length },
@@ -174,7 +177,10 @@ export class ModulePool {
                     sourceModuleId: mod.id,
                     vector: syntheticVector,
                     timestamp: now,
-                    metadata: { role: "synthetic" }
+                    metadata: {
+                        role: "synthetic",
+                        parents: parentIds
+                    }
                 });
                 mod.emittedSignalIds.push(`${mod.id}-synthetic-${now}`);
             }

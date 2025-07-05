@@ -122,6 +122,7 @@
     const defaultConfig = {
         hiddenUnits: 50,
         maxLen: 30,
+        weightInit: "uniform",
         activation: 'relu',
         charSet: 'abcdefghijklmnopqrstuvwxyz',
         useTokenizer: false,
@@ -318,8 +319,17 @@
             return Matrix.multiply(HtH_inv, Ht);
         }
         randomMatrix(rows, cols) {
-            const limit = Math.sqrt(6 / (rows + cols));
-            return Array.from({ length: rows }, () => Array.from({ length: cols }, () => Math.random() * 2 * limit - limit));
+            if (this.config.weightInit === "xavier") {
+                if (this.verbose)
+                    console.log(`✨ Xavier init with limit sqrt(6/${rows}+${cols})`);
+                const limit = Math.sqrt(6 / (rows + cols));
+                return Array.from({ length: rows }, () => Array.from({ length: cols }, () => Math.random() * 2 * limit - limit));
+            }
+            else {
+                if (this.verbose)
+                    console.log(`✨ Uniform init [-1,1]`);
+                return Array.from({ length: rows }, () => Array.from({ length: cols }, () => Math.random() * 2 - 1));
+            }
         }
         setCategories(categories) {
             this.categories = categories;
@@ -353,7 +363,7 @@
             }
             const tempH = Matrix.multiply(X, Matrix.transpose(W));
             const activationFn = Activations.get(this.activation);
-            const H = Activations.apply(tempH.map(row => row.map((val, j) => val + b[j][0])), activationFn);
+            let H = Activations.apply(tempH.map(row => row.map((val, j) => val + b[j][0])), activationFn);
             if (this.dropout > 0) {
                 const keepProb = 1 - this.dropout;
                 for (let i = 0; i < H.length; i++) {
@@ -367,12 +377,19 @@
                     }
                 }
             }
+            if (options === null || options === void 0 ? void 0 : options.weights) {
+                const W_arr = options.weights;
+                if (W_arr.length !== H.length) {
+                    throw new Error(`Weight array length ${W_arr.length} does not match sample count ${H.length}`);
+                }
+                // Scale each row by sqrt(weight)
+                H = H.map((row, i) => row.map(x => x * Math.sqrt(W_arr[i])));
+                Y = Y.map((row, i) => row.map(x => x * Math.sqrt(W_arr[i])));
+            }
             const H_pinv = this.pseudoInverse(H);
             const beta = Matrix.multiply(H_pinv, Y);
             this.model = { W, b, beta };
             const predictions = Matrix.multiply(H, beta);
-            const results = {};
-            let allPassed = true;
             if (this.metrics) {
                 const rmse = this.calculateRMSE(Y, predictions);
                 const mae = this.calculateMAE(Y, predictions);
@@ -380,6 +397,8 @@
                 const f1 = this.calculateF1Score(Y, predictions);
                 const ce = this.calculateCrossEntropy(Y, predictions);
                 const r2 = this.calculateR2Score(Y, predictions);
+                const results = {};
+                let allPassed = true;
                 if (this.metrics.rmse !== undefined) {
                     results.rmse = rmse;
                     if (rmse > this.metrics.rmse)
@@ -426,11 +445,18 @@
                 }
             }
             else {
-                throw new Error("No metrics defined in config. Please specify at least one metric to evaluate.");
+                // No metrics—always save the model
+                this.savedModelJSON = JSON.stringify(this.model);
+                if (this.verbose)
+                    console.log("✅ Model trained with no metrics—saved by default.");
+                if (this.config.exportFileName) {
+                    this.saveModelAsJSONFile(this.config.exportFileName);
+                }
             }
         }
-        train(augmentationOptions) {
-            const X = [], Y = [];
+        train(augmentationOptions, weights) {
+            const X = [];
+            let Y = [];
             this.categories.forEach((cat, i) => {
                 const variants = Augment.generateVariants(cat, this.charSet, augmentationOptions);
                 for (const variant of variants) {
@@ -443,7 +469,7 @@
             const b = this.randomMatrix(this.hiddenUnits, 1);
             const tempH = Matrix.multiply(X, Matrix.transpose(W));
             const activationFn = Activations.get(this.activation);
-            const H = Activations.apply(tempH.map(row => row.map((val, j) => val + b[j][0])), activationFn);
+            let H = Activations.apply(tempH.map(row => row.map((val, j) => val + b[j][0])), activationFn);
             if (this.dropout > 0) {
                 const keepProb = 1 - this.dropout;
                 for (let i = 0; i < H.length; i++) {
@@ -452,17 +478,23 @@
                             H[i][j] = 0;
                         }
                         else {
-                            H[i][j] /= keepProb; // Scale up to preserve expectation
+                            H[i][j] /= keepProb;
                         }
                     }
                 }
+            }
+            if (weights) {
+                if (weights.length !== H.length) {
+                    throw new Error(`Weight array length ${weights.length} does not match sample count ${H.length}`);
+                }
+                // Scale each row of H and Y by sqrt(weight)
+                H = H.map((row, i) => row.map(x => x * Math.sqrt(weights[i])));
+                Y = Y.map((row, i) => row.map(x => x * Math.sqrt(weights[i])));
             }
             const H_pinv = this.pseudoInverse(H);
             const beta = Matrix.multiply(H_pinv, Y);
             this.model = { W, b, beta };
             const predictions = Matrix.multiply(H, beta);
-            const results = {};
-            let allPassed = true;
             if (this.metrics) {
                 const rmse = this.calculateRMSE(Y, predictions);
                 const mae = this.calculateMAE(Y, predictions);
@@ -470,6 +502,8 @@
                 const f1 = this.calculateF1Score(Y, predictions);
                 const ce = this.calculateCrossEntropy(Y, predictions);
                 const r2 = this.calculateR2Score(Y, predictions);
+                const results = {};
+                let allPassed = true;
                 if (this.metrics.rmse !== undefined) {
                     results.rmse = rmse;
                     if (rmse > this.metrics.rmse)
@@ -517,7 +551,12 @@
                 }
             }
             else {
-                throw new Error("No metrics defined in config. Please specify at least one metric to evaluate.");
+                this.savedModelJSON = JSON.stringify(this.model);
+                if (this.verbose)
+                    console.log("✅ Model trained with no metrics—saved by default.");
+                if (this.config.exportFileName) {
+                    this.saveModelAsJSONFile(this.config.exportFileName);
+                }
             }
         }
         logMetrics(results) {

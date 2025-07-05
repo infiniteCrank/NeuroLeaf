@@ -1,3 +1,9 @@
+export interface TFIDFOptions {
+    stopWords?: Set<string>;
+    lemmatizationRules?: Record<string, string>;
+    maxVocabSize?: number;
+}
+
 export class TFIDF {
     termFrequency: Record<string, number> = {};
     inverseDocFreq: Record<string, number> = {};
@@ -5,8 +11,10 @@ export class TFIDF {
     processedWords: string[] = [];
     scores: Record<string, number> = {};
     corpus: string = "";
+    options: TFIDFOptions;
 
-    constructor(corpusDocs: string[]) {
+    constructor(corpusDocs: string[], options: TFIDFOptions = {}) {
+        this.options = options;
         this.corpus = corpusDocs.join(" ");
         const wordsFinal: string[] = [];
         const re = /[^a-zA-Z0-9]+/g;
@@ -20,7 +28,7 @@ export class TFIDF {
         });
 
         this.wordsInDoc = wordsFinal;
-        this.processedWords = TFIDF.processWords(wordsFinal);
+        this.processedWords = TFIDF.processWords(wordsFinal, options);
 
         // Compute term frequency
         this.processedWords.forEach(token => {
@@ -38,30 +46,24 @@ export class TFIDF {
         return corpusDocs.reduce((acc, doc) => (doc.includes(term) ? acc + 1 : acc), 0);
     }
 
-    static processWords(words: string[]): string[] {
-        const filtered = TFIDF.removeStopWordsAndStem(words).map(w => TFIDF.lemmatize(w));
+    static processWords(words: string[], options: TFIDFOptions = {}): string[] {
+        const filtered = TFIDF.removeStopWordsAndStem(words, options).map(w => TFIDF.lemmatize(w, options));
         const bigrams = TFIDF.generateNGrams(filtered, 2);
         const trigrams = TFIDF.generateNGrams(filtered, 3);
         return [...filtered, ...bigrams, ...trigrams];
     }
 
-    static removeStopWordsAndStem(words: string[]): string[] {
-        const stopWords = new Set([
+    static removeStopWordsAndStem(words: string[], options: TFIDFOptions = {}): string[] {
+        const defaultStopWords = new Set([
             "a", "and", "the", "is", "to", "of", "in", "it", "that", "you",
             "this", "for", "on", "are", "with", "as", "be", "by", "at", "from",
             "or", "an", "but", "not", "we"
         ]);
+        const stopWords = options.stopWords ?? defaultStopWords;
         return words.filter(w => !stopWords.has(w)).map(w => TFIDF.advancedStem(w));
     }
 
     static advancedStem(word: string): string {
-        const programmingKeywords = new Set([
-            "func", "package", "import", "interface", "go",
-            "goroutine", "channel", "select", "struct",
-            "map", "slice", "var", "const", "type",
-            "defer", "fallthrough"
-        ]);
-        if (programmingKeywords.has(word)) return word;
         const suffixes = ["es", "ed", "ing", "s", "ly", "ment", "ness", "ity", "ism", "er"];
         for (const suffix of suffixes) {
             if (word.endsWith(suffix)) {
@@ -74,26 +76,10 @@ export class TFIDF {
         return word;
     }
 
-    static lemmatize(word: string): string {
-        const rules: Record<string, string> = {
-            execute: "execute",
-            running: "run",
-            returns: "return",
-            defined: "define",
-            compiles: "compile",
-            calls: "call",
-            creating: "create",
-            invoke: "invoke",
-            declares: "declare",
-            references: "reference",
-            implements: "implement",
-            utilizes: "utilize",
-            tests: "test",
-            loops: "loop",
-            deletes: "delete",
-            functions: "function"
-        };
-        if (rules[word]) return rules[word];
+    static lemmatize(word: string, options: TFIDFOptions = {}): string {
+        if (options.lemmatizationRules && options.lemmatizationRules[word]) {
+            return options.lemmatizationRules[word];
+        }
         if (word.endsWith("ing")) return word.slice(0, -3);
         if (word.endsWith("ed")) return word.slice(0, -2);
         return word;
@@ -134,41 +120,38 @@ export class TFIDFVectorizer {
     tfidf: TFIDF;
     docTexts: string[];
 
-    constructor(docs: string[], maxVocabSize = 2000) {
+    constructor(docs: string[], options: TFIDFOptions = {}) {
         this.docTexts = docs;
-        this.tfidf = new TFIDF(docs);
+        this.tfidf = new TFIDF(docs, options);
 
-        // Collect all unique terms with frequencies
+        // Collect all unique terms
         const termFreq: Record<string, number> = {};
 
         docs.forEach(doc => {
             const tokens = doc.split(/\s+/);
             const cleaned = tokens.map(t => t.replace(/[^a-zA-Z0-9]+/g, ""));
-            const processed = TFIDF.processWords(cleaned);
+            const processed = TFIDF.processWords(cleaned, options);
             processed.forEach(t => {
                 termFreq[t] = (termFreq[t] || 0) + 1;
             });
         });
 
-        // Sort terms by frequency descending
+        const maxVocab = options.maxVocabSize ?? 2000;
+
         const sortedTerms = Object.entries(termFreq)
             .sort((a, b) => b[1] - a[1])
-            .slice(0, maxVocabSize)
+            .slice(0, maxVocab)
             .map(([term]) => term);
 
         this.vocabulary = sortedTerms;
         console.log(`✅ TFIDFVectorizer vocabulary capped at: ${this.vocabulary.length} terms.`);
     }
 
-    /**
-     * Returns the dense TFIDF vector for a given document text.
-     */
     vectorize(doc: string): number[] {
         const tokens = doc.split(/\s+/);
         const cleaned = tokens.map(t => t.replace(/[^a-zA-Z0-9]+/g, ""));
-        const processed = TFIDF.processWords(cleaned);
+        const processed = TFIDF.processWords(cleaned, this.tfidf.options);
 
-        // Compute term frequency in this document
         const termFreq: Record<string, number> = {};
         processed.forEach(token => {
             termFreq[token] = (termFreq[token] || 0) + 1;
@@ -183,16 +166,10 @@ export class TFIDFVectorizer {
         });
     }
 
-    /**
-     * Returns vectors for all original training docs.
-     */
     vectorizeAll(): number[][] {
         return this.docTexts.map(doc => this.vectorize(doc));
     }
 
-    /**
-     * Optional L2 normalization utility.
-     */
     static l2normalize(vec: number[]): number[] {
         const norm = Math.sqrt(vec.reduce((s, x) => s + x * x, 0));
         return norm === 0 ? vec : vec.map(x => x / norm);

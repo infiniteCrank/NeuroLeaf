@@ -1,5 +1,7 @@
+import { TFIDFVectorizer } from "../ml/TFIDF";
 import { ELM } from "./ELM";
 import { MiniTransformer } from "./MiniTransformer";
+import { Signal, SignalBus } from "./SignalBus";
 
 export type ModuleType = "ELM" | "Transformer";
 
@@ -87,5 +89,40 @@ export class ModulePool {
             metrics.mrr * 0.2 -
             metrics.avgLatency * 0.01
         );
+    }
+
+    /**
+     * Each module emits a signal to the bus.
+     */
+    broadcastAllSignals(bus: SignalBus, vectorizer: TFIDFVectorizer): void {
+        for (const mod of this.modules) {
+            const text = `Signal from ${mod.id}`;
+            const vector = vectorizer.vectorize(text);
+
+            bus.broadcast({
+                id: `${mod.id}-${Date.now()}`,
+                sourceModuleId: mod.id,
+                vector,
+                timestamp: Date.now(),
+                metadata: {
+                    role: mod.role
+                }
+            });
+        }
+    }
+
+    /**
+     * Each module consumes signals from others.
+     */
+    consumeAllSignals(bus: SignalBus): void {
+        for (const mod of this.modules) {
+            const signals = bus.getSignalsFromOthers(mod.id);
+
+            // You can define how to consume them.
+            // For example, count how many signals were observed:
+            if (signals.length > 0) {
+                console.log(`🔊 ${mod.id} observed ${signals.length} signals from peers.`);
+            }
+        }
     }
 }

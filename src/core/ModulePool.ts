@@ -25,6 +25,7 @@ export interface Module {
     signalsConsumedByOthers: number;
     emittedSignalIds: string[];
     signalHistory: Signal[];
+    lastNovelty?: number;
 }
 
 export interface Feedback {
@@ -51,6 +52,8 @@ export class FeedbackStore {
         return { likes, dislikes };
     }
 }
+
+const MODULE_ROLES = ["listener", "communicator", "explorer", "synthesizer"];
 
 export class ModulePool {
     modules: Module[];
@@ -86,11 +89,10 @@ export class ModulePool {
             const totalFeedback = likes + dislikes || 1;
             const affinity = likes / totalFeedback;
 
-            // Example: boost fitness if role is communicator
             const roleBoost = mod.role === "communicator" ? 0.1 : 0;
+            const noveltyBoost = (mod.lastNovelty ?? 0) * 0.2;
 
-            const fitness = affinity * 0.6 + (usage / (usage + 1)) * 0.3 + roleBoost;
-            // Save fitness for future weighting
+            const fitness = affinity * 0.5 + (usage / (usage + 1)) * 0.3 + roleBoost + noveltyBoost;
             this.moduleFitness.set(mod.id, fitness);
 
             if (fitness < 0.3) {
@@ -105,11 +107,15 @@ export class ModulePool {
                 const cloned: Module = {
                     ...mod,
                     id: newId,
+                    role: Math.random() < 0.3
+                        ? MODULE_ROLES[Math.floor(Math.random() * MODULE_ROLES.length)]
+                        : mod.role,
                     signalLikes: 0,
                     signalDislikes: 0,
                     signalsConsumedByOthers: 0,
                     emittedSignalIds: [],
-                    signalHistory: []
+                    signalHistory: [],
+                    lastNovelty: undefined
                 };
                 clones.push(cloned);
             }
@@ -120,14 +126,10 @@ export class ModulePool {
         this.modules = [...survivors, ...clones];
     }
 
-    /**
-     * Emit internal, human, and synthetic signals.
-     */
     broadcastAllSignals(bus: SignalBus, vectorizer: TFIDFVectorizer): void {
         for (const mod of this.modules) {
             const now = Date.now();
 
-            // 1️⃣ Internal signal
             const internalId = `${mod.id}-internal-${now}-${Math.floor(Math.random() * 1000)}`;
             const internalVector = vectorizer.vectorize(`Embedding from ${mod.id}`);
             bus.broadcast({
@@ -139,7 +141,6 @@ export class ModulePool {
             });
             mod.emittedSignalIds.push(internalId);
 
-            // 2️⃣ Human signal
             const humanId = `${mod.id}-human-${now}-${Math.floor(Math.random() * 1000)}`;
             const humanVector = vectorizer.vectorize(`Message from ${mod.id}`);
             bus.broadcast({
@@ -151,20 +152,17 @@ export class ModulePool {
             });
             mod.emittedSignalIds.push(humanId);
 
-            // 3️⃣ Synthetic (30% chance)
             if (Math.random() < 0.3) {
                 let syntheticVector: number[];
                 let parentIds: string[] = [];
 
                 if (Math.random() < 0.5) {
-                    // Random vector
                     syntheticVector = Array.from(
                         { length: internalVector.length },
                         () => Math.random() * 2 - 1
                     );
                     console.log(`🌱 ${mod.id} emitted RANDOM synthetic signal.`);
                 } else if (mod.signalHistory.length > 0) {
-                    // Recombine last 5 signals
                     const signalsToCombine = mod.signalHistory.slice(-5);
                     syntheticVector = this.averageVectors(signalsToCombine.map(s => s.vector));
                     parentIds = signalsToCombine.map(s => s.id);
@@ -193,9 +191,6 @@ export class ModulePool {
         }
     }
 
-    /**
-     * Recursively trace signal ancestry.
-     */
     getSignalLineage(signalId: string, bus: SignalBus): string[] {
         const signal = bus.getSignals().find(s => s.id === signalId);
         if (!signal) return [];
@@ -203,7 +198,6 @@ export class ModulePool {
         const parents = signal.metadata?.parents ?? [];
         let lineage = [...parents];
 
-        // Recursively collect ancestors
         for (const parentId of parents) {
             const ancestorLine = this.getSignalLineage(parentId, bus);
             lineage = lineage.concat(ancestorLine);
@@ -223,7 +217,8 @@ export class ModulePool {
             const parentModuleId = signal.sourceModuleId;
             const medianFitness = this.getMedianFitness();
             const fitness = this.moduleFitness.get(parentModuleId) ?? medianFitness;
-            const weight = 0.1 + fitness; // ensure minimum weight
+            const novelty = this.computeSignalNovelty(signal);
+            const weight = 0.1 + 0.7 * fitness + 0.3 * novelty;
 
             for (let i = 0; i < length; i++) {
                 sums[i] += signal.vector[i] * weight;
@@ -247,9 +242,6 @@ export class ModulePool {
             : (fitnesses[mid - 1] + fitnesses[mid]) / 2;
     }
 
-    /**
-     * Consume signals and dynamically adapt.
-     */
     consumeAllSignals(bus: SignalBus): void {
         for (const mod of this.modules) {
             const signals = bus.getSignalsFromOthers(mod.id);
@@ -269,7 +261,8 @@ export class ModulePool {
                 const avgVec = this.weightedAverageVectors(internalSignals);
                 const novelty = this.computeNoveltyScore(avgVec, mod.signalHistory);
 
-                // Dynamic category
+                mod.lastNovelty = novelty;
+
                 const hash = "cat-" + Math.abs(Math.floor(avgVec.reduce((a, b) => a + b, 0) * 1000));
                 if (!mod.elm.categories.includes(hash)) {
                     mod.elm.categories.push(hash);
@@ -324,5 +317,11 @@ export class ModulePool {
         const normB = Math.sqrt(avgVec.reduce((sum, v) => sum + v * v, 0));
         const similarity = dot / (normA * normB + 1e-8);
         return 1 - similarity;
+    }
+
+    private computeSignalNovelty(signal: Signal): number {
+        if (!signal.vector || signal.vector.length === 0) return 0;
+        if (!signal.metadata?.parents || signal.metadata.parents.length === 0) return 1;
+        return 0.5; // Simplified for now, or wire up full lineage scoring
     }
 }

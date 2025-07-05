@@ -102,14 +102,20 @@ export class ModulePool {
 
             if (fitness > 0.7) {
                 const newId = `${mod.id}-clone-${Date.now()}`;
+                const newRole = Math.random() < 0.3
+                    ? MODULE_ROLES[Math.floor(Math.random() * MODULE_ROLES.length)]
+                    : mod.role;
+
+                if (newRole !== mod.role) {
+                    console.log(`🔄 ${mod.id} changed role: ${mod.role} ➡️ ${newRole}`);
+                }
+
                 console.log(`✨ Cloning ${mod.id} -> ${newId}`);
 
                 const cloned: Module = {
                     ...mod,
                     id: newId,
-                    role: Math.random() < 0.3
-                        ? MODULE_ROLES[Math.floor(Math.random() * MODULE_ROLES.length)]
-                        : mod.role,
+                    role: newRole,
                     signalLikes: 0,
                     signalDislikes: 0,
                     signalsConsumedByOthers: 0,
@@ -206,7 +212,7 @@ export class ModulePool {
         return lineage;
     }
 
-    private weightedAverageVectors(signals: Signal[]): number[] {
+    private weightedAverageVectors(signals: Signal[], bus: SignalBus): number[] {
         if (signals.length === 0) return [];
 
         const length = signals[0].vector.length;
@@ -217,7 +223,7 @@ export class ModulePool {
             const parentModuleId = signal.sourceModuleId;
             const medianFitness = this.getMedianFitness();
             const fitness = this.moduleFitness.get(parentModuleId) ?? medianFitness;
-            const novelty = this.computeSignalNovelty(signal);
+            const novelty = this.computeSignalNovelty(signal, bus);
             const weight = 0.1 + 0.7 * fitness + 0.3 * novelty;
 
             for (let i = 0; i < length; i++) {
@@ -226,6 +232,8 @@ export class ModulePool {
 
             totalWeight += weight;
         }
+
+        if (totalWeight === 0) return Array(length).fill(0);
 
         return sums.map(s => s / totalWeight);
     }
@@ -258,10 +266,10 @@ export class ModulePool {
             mod.signalsConsumedByOthers += internalSignals.length;
 
             if (internalSignals.length > 0 && mod.elm) {
-                const avgVec = this.weightedAverageVectors(internalSignals);
+                const avgVec = this.weightedAverageVectors(internalSignals, bus);
                 const novelty = this.computeNoveltyScore(avgVec, mod.signalHistory);
 
-                mod.lastNovelty = novelty;
+                mod.lastNovelty = Math.min(novelty, 1);
 
                 const hash = "cat-" + Math.abs(Math.floor(avgVec.reduce((a, b) => a + b, 0) * 1000));
                 if (!mod.elm.categories.includes(hash)) {
@@ -319,9 +327,45 @@ export class ModulePool {
         return 1 - similarity;
     }
 
-    private computeSignalNovelty(signal: Signal): number {
+    private findSignalById(id: string, bus: SignalBus): Signal | undefined {
+        return bus.getSignals().find(s => s.id === id);
+    }
+
+    private getAncestorVectors(signal: Signal, bus: SignalBus): number[][] {
+        const vectors: number[][] = [];
+
+        if (!signal.metadata?.parents) return vectors;
+
+        for (const parentId of signal.metadata.parents) {
+            const parent = this.findSignalById(parentId, bus);
+            if (parent?.vector) {
+                vectors.push(parent.vector);
+                const further = this.getAncestorVectors(parent, bus);
+                vectors.push(...further);
+            }
+        }
+
+        return vectors;
+    }
+
+    private computeSignalNovelty(signal: Signal, bus: SignalBus): number {
         if (!signal.vector || signal.vector.length === 0) return 0;
         if (!signal.metadata?.parents || signal.metadata.parents.length === 0) return 1;
-        return 0.5; // Simplified for now, or wire up full lineage scoring
+
+        const parentVectors: number[][] = [];
+
+        for (const parentId of signal.metadata.parents) {
+            const parent = this.findSignalById(parentId, bus);
+            if (parent?.vector) {
+                parentVectors.push(parent.vector);
+                const grandParents = this.getAncestorVectors(parent, bus);
+                parentVectors.push(...grandParents);
+            }
+        }
+
+        if (parentVectors.length === 0) return 1;
+
+        const avgParent = this.averageVectors(parentVectors);
+        return this.computeNoveltyScore(signal.vector, [{ vector: avgParent } as Signal]);
     }
 }

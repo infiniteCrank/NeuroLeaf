@@ -85,7 +85,10 @@ export class ModulePool {
             const totalFeedback = likes + dislikes || 1;
             const affinity = likes / totalFeedback;
 
-            const fitness = affinity * 0.6 + (usage / (usage + 1)) * 0.4;
+            // Example: boost fitness if role is communicator
+            const roleBoost = mod.role === "communicator" ? 0.1 : 0;
+
+            const fitness = affinity * 0.6 + (usage / (usage + 1)) * 0.3 + roleBoost;
 
             if (fitness < 0.3) {
                 console.log(`❌ Removing ${mod.id} (fitness ${fitness.toFixed(2)})`);
@@ -115,136 +118,122 @@ export class ModulePool {
     }
 
     /**
-     * Each module emits internal, human, and synthetic signals.
+     * Emit internal, human, and synthetic signals.
      */
     broadcastAllSignals(bus: SignalBus, vectorizer: TFIDFVectorizer): void {
         for (const mod of this.modules) {
             const now = Date.now();
 
-            // 1️⃣ Internal signal
+            // 1️⃣ Internal
             const internalVector = vectorizer.vectorize(`Embedding from ${mod.id}`);
-            const internalSignal: Signal = {
+            bus.broadcast({
                 id: `${mod.id}-internal-${now}`,
                 sourceModuleId: mod.id,
                 vector: internalVector,
                 timestamp: now,
-                metadata: {
-                    role: "internal"
-                }
-            };
-            bus.broadcast(internalSignal);
-            mod.emittedSignalIds.push(internalSignal.id);
+                metadata: { role: "internal" }
+            });
+            mod.emittedSignalIds.push(`${mod.id}-internal-${now}`);
 
-            // 2️⃣ Human message signal
+            // 2️⃣ Human
             const humanVector = vectorizer.vectorize(`Message from ${mod.id}`);
-            const humanSignal: Signal = {
+            bus.broadcast({
                 id: `${mod.id}-human-${now}`,
                 sourceModuleId: mod.id,
                 vector: humanVector,
                 timestamp: now,
-                metadata: {
-                    role: "human"
-                }
-            };
-            bus.broadcast(humanSignal);
-            mod.emittedSignalIds.push(humanSignal.id);
+                metadata: { role: "human" }
+            });
+            mod.emittedSignalIds.push(`${mod.id}-human-${now}`);
 
-            // 3️⃣ Synthetic signal with 30% probability
+            // 3️⃣ Synthetic (30% chance)
             if (Math.random() < 0.3) {
                 let syntheticVector: number[];
-
-                // 50% chance random, 50% recombined
                 if (Math.random() < 0.5) {
-                    // Random vector
                     syntheticVector = Array.from(
                         { length: internalVector.length },
                         () => Math.random() * 2 - 1
                     );
-                    console.log(`🌱 ${mod.id} emitting RANDOM synthetic signal.`);
+                    console.log(`🌱 ${mod.id} emitted RANDOM synthetic signal.`);
                 } else if (mod.signalHistory.length > 0) {
-                    // Recombine past signals
                     const vectorsToCombine = mod.signalHistory
-                        .slice(-5) // take up to 5 most recent
+                        .slice(-5)
                         .map((s) => s.vector);
                     syntheticVector = this.averageVectors(vectorsToCombine);
-                    console.log(`🌿 ${mod.id} emitting RECOMBINED synthetic signal.`);
+                    console.log(`🌿 ${mod.id} emitted RECOMBINED synthetic signal.`);
                 } else {
-                    // Fallback to random if no history
                     syntheticVector = Array.from(
                         { length: internalVector.length },
                         () => Math.random() * 2 - 1
                     );
-                    console.log(`🌱 ${mod.id} emitting fallback RANDOM synthetic signal.`);
+                    console.log(`🌱 ${mod.id} emitted fallback RANDOM synthetic signal.`);
                 }
 
-                const syntheticSignal: Signal = {
+                bus.broadcast({
                     id: `${mod.id}-synthetic-${now}`,
                     sourceModuleId: mod.id,
                     vector: syntheticVector,
                     timestamp: now,
-                    metadata: {
-                        role: "synthetic"
-                    }
-                };
-                bus.broadcast(syntheticSignal);
-                mod.emittedSignalIds.push(syntheticSignal.id);
+                    metadata: { role: "synthetic" }
+                });
+                mod.emittedSignalIds.push(`${mod.id}-synthetic-${now}`);
             }
         }
     }
 
     /**
-     * Each module consumes signals and retrains or mutates based on them.
+     * Consume signals and dynamically adapt.
      */
     consumeAllSignals(bus: SignalBus): void {
         for (const mod of this.modules) {
             const signals = bus.getSignalsFromOthers(mod.id);
+            if (signals.length === 0) continue;
 
-            if (signals.length > 0) {
-                console.log(`🔊 ${mod.id} observed ${signals.length} signals from peers.`);
+            console.log(`🔊 ${mod.id} observed ${signals.length} signals.`);
 
-                // Keep last 50 signals
-                mod.signalHistory.push(...signals);
-                if (mod.signalHistory.length > 50) {
-                    mod.signalHistory = mod.signalHistory.slice(-50);
+            mod.signalHistory.push(...signals);
+            if (mod.signalHistory.length > 50) {
+                mod.signalHistory = mod.signalHistory.slice(-50);
+            }
+
+            const internalSignals = signals.filter(s => s.metadata?.role === "internal");
+            mod.signalsConsumedByOthers += internalSignals.length;
+
+            if (internalSignals.length > 0 && mod.elm) {
+                const avgVec = this.averageVectors(internalSignals.map(s => s.vector));
+                const novelty = this.computeNoveltyScore(avgVec, mod.signalHistory);
+
+                // Dynamic category adaptation
+                const hash = "cat-" + Math.abs(Math.floor(avgVec.reduce((a, b) => a + b, 0) * 1000));
+                if (!mod.elm.categories.includes(hash)) {
+                    mod.elm.categories.push(hash);
+                    console.log(`🪴 ${mod.id} discovered new category: ${hash}`);
                 }
+                const catIndex = mod.elm.categories.indexOf(hash);
+                const label = Array(mod.elm.categories.length).fill(0);
+                label[catIndex] = 1;
 
-                const internalSignals = signals.filter(
-                    (s) => s.metadata?.role === "internal"
+                // Retrain
+                mod.elm.trainFromData(
+                    [avgVec],
+                    [label],
+                    { reuseWeights: true }
                 );
-                mod.signalsConsumedByOthers += internalSignals.length;
 
-                // 🚀 Retrain or mutate if there are internal signals
-                if (internalSignals.length > 0 && mod.elm) {
-                    const avgVec = this.averageVectors(
-                        internalSignals.map((s) => s.vector)
+                // Mutate dropout
+                if (typeof mod.elm.config.dropout === "number") {
+                    const oldDropout = mod.elm.config.dropout;
+                    mod.elm.config.dropout = Math.max(
+                        0,
+                        Math.min(
+                            0.2,
+                            oldDropout + (Math.random() * 0.02 - 0.01)
+                        )
                     );
-
-                    // Dummy label: one-hot with 1 in first position
-                    const label = Array(mod.elm.categories.length).fill(0);
-                    label[0] = 1;
-
-                    // Retrain
-                    mod.elm.trainFromData(
-                        [avgVec],
-                        [label],
-                        { reuseWeights: true }
-                    );
-
-                    // Mutate dropout a bit
-                    if (typeof mod.elm.config.dropout === "number") {
-                        const oldDropout = mod.elm.config.dropout;
-                        mod.elm.config.dropout = Math.max(
-                            0,
-                            Math.min(
-                                0.2,
-                                oldDropout + (Math.random() * 0.02 - 0.01)
-                            )
-                        );
-                        console.log(`⚙️ ${mod.id} adjusted dropout: ${oldDropout.toFixed(3)} -> ${mod.elm.config.dropout.toFixed(3)}`);
-                    }
-
-                    console.log(`⚡ ${mod.id} retrained with avg vector from ${internalSignals.length} signals.`);
+                    console.log(`⚙️ ${mod.id} adjusted dropout: ${oldDropout.toFixed(3)} -> ${mod.elm.config.dropout.toFixed(3)}`);
                 }
+
+                console.log(`⚡ ${mod.id} retrained with novelty=${novelty.toFixed(3)}`);
             }
         }
     }
@@ -258,6 +247,18 @@ export class ModulePool {
                 sums[i] += vec[i];
             }
         }
-        return sums.map((s) => s / vectors.length);
+        return sums.map(s => s / vectors.length);
+    }
+
+    private computeNoveltyScore(vector: number[], history: Signal[]): number {
+        if (history.length === 0) return 1;
+        const lastVectors = history.map(s => s.vector);
+        const avgVec = this.averageVectors(lastVectors);
+
+        const dot = vector.reduce((sum, v, i) => sum + v * avgVec[i], 0);
+        const normA = Math.sqrt(vector.reduce((sum, v) => sum + v * v, 0));
+        const normB = Math.sqrt(avgVec.reduce((sum, v) => sum + v * v, 0));
+        const similarity = dot / (normA * normB + 1e-8);
+        return 1 - similarity;
     }
 }

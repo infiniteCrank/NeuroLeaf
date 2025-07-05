@@ -54,6 +54,7 @@ export class FeedbackStore {
 
 export class ModulePool {
     modules: Module[];
+    private moduleFitness: Map<string, number> = new Map();
 
     constructor() {
         this.modules = [];
@@ -89,6 +90,8 @@ export class ModulePool {
             const roleBoost = mod.role === "communicator" ? 0.1 : 0;
 
             const fitness = affinity * 0.6 + (usage / (usage + 1)) * 0.3 + roleBoost;
+            // Save fitness for future weighting
+            this.moduleFitness.set(mod.id, fitness);
 
             if (fitness < 0.3) {
                 console.log(`❌ Removing ${mod.id} (fitness ${fitness.toFixed(2)})`);
@@ -125,26 +128,28 @@ export class ModulePool {
             const now = Date.now();
 
             // 1️⃣ Internal signal
+            const internalId = `${mod.id}-internal-${now}-${Math.floor(Math.random() * 1000)}`;
             const internalVector = vectorizer.vectorize(`Embedding from ${mod.id}`);
             bus.broadcast({
-                id: `${mod.id}-internal-${now}`,
+                id: internalId,
                 sourceModuleId: mod.id,
                 vector: internalVector,
                 timestamp: now,
                 metadata: { role: "internal", parents: [] }
             });
-            mod.emittedSignalIds.push(`${mod.id}-internal-${now}`);
+            mod.emittedSignalIds.push(internalId);
 
             // 2️⃣ Human signal
+            const humanId = `${mod.id}-human-${now}-${Math.floor(Math.random() * 1000)}`;
             const humanVector = vectorizer.vectorize(`Message from ${mod.id}`);
             bus.broadcast({
-                id: `${mod.id}-human-${now}`,
+                id: humanId,
                 sourceModuleId: mod.id,
                 vector: humanVector,
                 timestamp: now,
                 metadata: { role: "human", parents: [] }
             });
-            mod.emittedSignalIds.push(`${mod.id}-human-${now}`);
+            mod.emittedSignalIds.push(humanId);
 
             // 3️⃣ Synthetic (30% chance)
             if (Math.random() < 0.3) {
@@ -172,8 +177,9 @@ export class ModulePool {
                     console.log(`🌱 ${mod.id} emitted fallback RANDOM synthetic signal.`);
                 }
 
+                const syntheticId = `${mod.id}-synthetic-${now}-${Math.floor(Math.random() * 1000)}`;
                 bus.broadcast({
-                    id: `${mod.id}-synthetic-${now}`,
+                    id: syntheticId,
                     sourceModuleId: mod.id,
                     vector: syntheticVector,
                     timestamp: now,
@@ -182,9 +188,63 @@ export class ModulePool {
                         parents: parentIds
                     }
                 });
-                mod.emittedSignalIds.push(`${mod.id}-synthetic-${now}`);
+                mod.emittedSignalIds.push(syntheticId);
             }
         }
+    }
+
+    /**
+     * Recursively trace signal ancestry.
+     */
+    getSignalLineage(signalId: string, bus: SignalBus): string[] {
+        const signal = bus.getSignals().find(s => s.id === signalId);
+        if (!signal) return [];
+
+        const parents = signal.metadata?.parents ?? [];
+        let lineage = [...parents];
+
+        // Recursively collect ancestors
+        for (const parentId of parents) {
+            const ancestorLine = this.getSignalLineage(parentId, bus);
+            lineage = lineage.concat(ancestorLine);
+        }
+
+        return lineage;
+    }
+
+    private weightedAverageVectors(signals: Signal[]): number[] {
+        if (signals.length === 0) return [];
+
+        const length = signals[0].vector.length;
+        const sums = Array(length).fill(0);
+        let totalWeight = 0;
+
+        for (const signal of signals) {
+            const parentModuleId = signal.sourceModuleId;
+            const medianFitness = this.getMedianFitness();
+            const fitness = this.moduleFitness.get(parentModuleId) ?? medianFitness;
+            const weight = 0.1 + fitness; // ensure minimum weight
+
+            for (let i = 0; i < length; i++) {
+                sums[i] += signal.vector[i] * weight;
+            }
+
+            totalWeight += weight;
+        }
+
+        return sums.map(s => s / totalWeight);
+    }
+
+    private getMedianFitness(): number {
+        const fitnesses = Array.from(this.moduleFitness.values());
+        if (fitnesses.length === 0) return 0.5;
+
+        fitnesses.sort((a, b) => a - b);
+        const mid = Math.floor(fitnesses.length / 2);
+
+        return fitnesses.length % 2 !== 0
+            ? fitnesses[mid]
+            : (fitnesses[mid - 1] + fitnesses[mid]) / 2;
     }
 
     /**
@@ -206,10 +266,10 @@ export class ModulePool {
             mod.signalsConsumedByOthers += internalSignals.length;
 
             if (internalSignals.length > 0 && mod.elm) {
-                const avgVec = this.averageVectors(internalSignals.map(s => s.vector));
+                const avgVec = this.weightedAverageVectors(internalSignals);
                 const novelty = this.computeNoveltyScore(avgVec, mod.signalHistory);
 
-                // Dynamic category adaptation
+                // Dynamic category
                 const hash = "cat-" + Math.abs(Math.floor(avgVec.reduce((a, b) => a + b, 0) * 1000));
                 if (!mod.elm.categories.includes(hash)) {
                     mod.elm.categories.push(hash);
@@ -219,14 +279,12 @@ export class ModulePool {
                 const label = Array(mod.elm.categories.length).fill(0);
                 label[catIndex] = 1;
 
-                // Retrain
                 mod.elm.trainFromData(
                     [avgVec],
                     [label],
                     { reuseWeights: true }
                 );
 
-                // Mutate dropout
                 if (typeof mod.elm.config.dropout === "number") {
                     const oldDropout = mod.elm.config.dropout;
                     mod.elm.config.dropout = Math.max(
@@ -239,7 +297,7 @@ export class ModulePool {
                     console.log(`⚙️ ${mod.id} adjusted dropout: ${oldDropout.toFixed(3)} -> ${mod.elm.config.dropout.toFixed(3)}`);
                 }
 
-                console.log(`⚡ ${mod.id} retrained with novelty=${novelty.toFixed(3)}`);
+                console.log(`⚡ ${mod.id} retrained with novelty=${novelty.toFixed(3)} (fitness-weighted ancestors)`);
             }
         }
     }

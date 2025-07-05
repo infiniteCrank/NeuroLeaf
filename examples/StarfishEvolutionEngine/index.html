@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Cyberpunk Canvas UI</title>
   <style>
+     @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@500&display=swap');
     body {
       background-color: #0f0f1f;
       color: #f0f0f0;
@@ -60,7 +61,6 @@
       box-shadow: 0 0 20px #00ffcc, inset 0 0 10px #00ffcc;
     }
 
-    @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@500&display=swap');
   </style>
 </head>
 <body>
@@ -73,26 +73,6 @@
 
   <canvas id="cyberCanvas" width="400" height="400"></canvas>
 
-  <script>
-    const canvas = document.getElementById('cyberCanvas');
-    const ctx = canvas.getContext('2d');
-
-    // Optional: draw a cyberpunk grid or pattern
-    ctx.strokeStyle = '#00ffcc';
-    ctx.lineWidth = 0.5;
-
-    for (let i = 0; i <= 400; i += 20) {
-      ctx.beginPath();
-      ctx.moveTo(i, 0);
-      ctx.lineTo(i, 400);
-      ctx.stroke();
-
-      ctx.beginPath();
-      ctx.moveTo(0, i);
-      ctx.lineTo(400, i);
-      ctx.stroke();
-    }
-  </script>
   <script src="/astermind.umd.js"></script>
   <script src="/main.js"></script>
 </body>

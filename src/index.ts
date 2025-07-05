@@ -16,3 +16,7 @@ export * from './core/Activations';
 export * from './core/ELMConfig';
 export * from './utils/Augment';
 export * from './ui/components/BindUI';
+export * from './core/ModulePool';
+export * from './core/SignalBus';
+export * from './core/MiniTransformer';
+export * from './ml/TFIDF';

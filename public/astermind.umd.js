@@ -1456,6 +1456,325 @@
         }
     }
 
+    class ModulePool {
+        constructor() {
+            this.modules = [];
+        }
+        addModule(mod) {
+            this.modules.push(mod);
+        }
+        removeModule(id) {
+            this.modules = this.modules.filter((m) => m.id !== id);
+        }
+        getModuleById(id) {
+            return this.modules.find((m) => m.id === id);
+        }
+        listModules() {
+            return this.modules;
+        }
+        evolveModules() {
+            const clones = [];
+            const survivors = [];
+            for (const mod of this.modules) {
+                const score = this.computeScore(mod.metrics);
+                if (score < 0.3) {
+                    console.log(`❌ Removing ${mod.id} (score ${score.toFixed(4)})`);
+                    continue;
+                }
+                if (score > 0.6) {
+                    const newId = `${mod.id}-clone-${Date.now()}`;
+                    console.log(`✨ Cloning ${mod.id} -> ${newId}`);
+                    const cloned = Object.assign(Object.assign({}, mod), { id: newId });
+                    // Simple mutation
+                    if (cloned.elm && cloned.elm.config && typeof cloned.elm.config.dropout === "number") {
+                        cloned.elm.config.dropout = Math.max(0, Math.min(0.2, cloned.elm.config.dropout + (Math.random() * 0.02 - 0.01)));
+                    }
+                    clones.push(cloned);
+                }
+                survivors.push(mod);
+            }
+            this.modules = [...survivors, ...clones];
+        }
+        computeScore(metrics) {
+            return (metrics.recall1 * 0.5 +
+                metrics.recall5 * 0.3 +
+                metrics.mrr * 0.2 -
+                metrics.avgLatency * 0.01);
+        }
+        /**
+         * Each module emits a signal to the bus.
+         */
+        broadcastAllSignals(bus, vectorizer) {
+            for (const mod of this.modules) {
+                const text = `Signal from ${mod.id}`;
+                const vector = vectorizer.vectorize(text);
+                bus.broadcast({
+                    id: `${mod.id}-${Date.now()}`,
+                    sourceModuleId: mod.id,
+                    vector,
+                    timestamp: Date.now(),
+                    metadata: {
+                        role: mod.role
+                    }
+                });
+            }
+        }
+        /**
+         * Each module consumes signals from others.
+         */
+        consumeAllSignals(bus) {
+            for (const mod of this.modules) {
+                const signals = bus.getSignalsFromOthers(mod.id);
+                // You can define how to consume them.
+                // For example, count how many signals were observed:
+                if (signals.length > 0) {
+                    console.log(`🔊 ${mod.id} observed ${signals.length} signals from peers.`);
+                }
+            }
+        }
+    }
+
+    // src/core/SignalBus.ts
+    class SignalBus {
+        constructor(maxHistory = 500) {
+            this.signals = [];
+            this.maxHistory = maxHistory;
+        }
+        // Broadcast a new signal
+        broadcast(signal) {
+            this.signals.push(signal);
+            if (this.signals.length > this.maxHistory) {
+                this.signals.shift(); // remove oldest
+            }
+        }
+        // Retrieve all signals
+        getSignals() {
+            return this.signals.slice();
+        }
+        // Retrieve signals from other modules only
+        getSignalsFromOthers(moduleId) {
+            return this.signals.filter(s => s.sourceModuleId !== moduleId);
+        }
+        // Clear all signals (optional)
+        clear() {
+            this.signals = [];
+        }
+    }
+
+    // MiniTransformer.ts
+    class Vocab {
+        constructor(tokens) {
+            this.tokens = tokens;
+            this.tokenToIdx = {};
+            this.idxToToken = {};
+            tokens.forEach((t, i) => {
+                this.tokenToIdx[t] = i;
+                this.idxToToken[i] = t;
+            });
+        }
+        encode(text) {
+            return text
+                .split("")
+                .map(c => this.tokenToIdx[c])
+                .filter((idx) => idx !== undefined);
+        }
+    }
+    class MiniTransformer {
+        constructor(vocab) {
+            this.vocab = vocab;
+            this.embedDim = 32;
+            this.seqLen = 16;
+            this.embedding = this.randomMatrix(vocab.tokens.length, this.embedDim);
+            this.posEnc = this.positionalEncoding(this.seqLen, this.embedDim);
+        }
+        randomMatrix(rows, cols) {
+            return Array.from({ length: rows }, () => Array.from({ length: cols }, () => Math.random() * 2 - 1));
+        }
+        positionalEncoding(seqLen, embedDim) {
+            const encoding = [];
+            for (let pos = 0; pos < seqLen; pos++) {
+                const row = [];
+                for (let i = 0; i < embedDim; i++) {
+                    const angle = pos / Math.pow(10000, (2 * Math.floor(i / 2)) / embedDim);
+                    row.push(i % 2 === 0 ? Math.sin(angle) : Math.cos(angle));
+                }
+                encoding.push(row);
+            }
+            return encoding;
+        }
+        encode(inputIndices) {
+            if (!inputIndices || inputIndices.length === 0) {
+                // Fallback: zero vector
+                return Array(this.embedDim).fill(0);
+            }
+            // For each token index, get embedding + position encoding
+            const x = inputIndices.map((idx, i) => {
+                if (idx === undefined) {
+                    // Unknown token fallback embedding
+                    return Array.from({ length: this.embedDim }, () => 0);
+                }
+                return this.embedding[idx].map((v, j) => v + this.posEnc[i % this.seqLen][j]);
+            });
+            // Aggregate into a single embedding (mean)
+            return this.meanVecs(x);
+        }
+        meanVecs(vecs) {
+            const out = Array(vecs[0].length).fill(0);
+            for (const vec of vecs) {
+                for (let i = 0; i < vec.length; i++) {
+                    out[i] += vec[i];
+                }
+            }
+            return out.map(v => v / vecs.length);
+        }
+    }
+
+    class TFIDF {
+        constructor(corpusDocs, options = {}) {
+            this.termFrequency = {};
+            this.inverseDocFreq = {};
+            this.wordsInDoc = [];
+            this.processedWords = [];
+            this.scores = {};
+            this.corpus = "";
+            this.options = options;
+            this.corpus = corpusDocs.join(" ");
+            const wordsFinal = [];
+            const re = /[^a-zA-Z0-9]+/g;
+            corpusDocs.forEach(doc => {
+                const tokens = doc.split(/\s+/);
+                tokens.forEach(word => {
+                    const cleaned = word.replace(re, " ");
+                    wordsFinal.push(...cleaned.split(/\s+/).filter(Boolean));
+                });
+            });
+            this.wordsInDoc = wordsFinal;
+            this.processedWords = TFIDF.processWords(wordsFinal, options);
+            // Compute term frequency
+            this.processedWords.forEach(token => {
+                this.termFrequency[token] = (this.termFrequency[token] || 0) + 1;
+            });
+            // Compute inverse document frequency
+            for (const term in this.termFrequency) {
+                const count = TFIDF.countDocsContainingTerm(corpusDocs, term);
+                this.inverseDocFreq[term] = Math.log(corpusDocs.length / (1 + count));
+            }
+        }
+        static countDocsContainingTerm(corpusDocs, term) {
+            return corpusDocs.reduce((acc, doc) => (doc.includes(term) ? acc + 1 : acc), 0);
+        }
+        static processWords(words, options = {}) {
+            const filtered = TFIDF.removeStopWordsAndStem(words, options).map(w => TFIDF.lemmatize(w, options));
+            const bigrams = TFIDF.generateNGrams(filtered, 2);
+            const trigrams = TFIDF.generateNGrams(filtered, 3);
+            return [...filtered, ...bigrams, ...trigrams];
+        }
+        static removeStopWordsAndStem(words, options = {}) {
+            var _a;
+            const defaultStopWords = new Set([
+                "a", "and", "the", "is", "to", "of", "in", "it", "that", "you",
+                "this", "for", "on", "are", "with", "as", "be", "by", "at", "from",
+                "or", "an", "but", "not", "we"
+            ]);
+            const stopWords = (_a = options.stopWords) !== null && _a !== void 0 ? _a : defaultStopWords;
+            return words.filter(w => !stopWords.has(w)).map(w => TFIDF.advancedStem(w));
+        }
+        static advancedStem(word) {
+            const suffixes = ["es", "ed", "ing", "s", "ly", "ment", "ness", "ity", "ism", "er"];
+            for (const suffix of suffixes) {
+                if (word.endsWith(suffix)) {
+                    if (suffix === "es" && word.length > 2 && word[word.length - 3] === "i") {
+                        return word.slice(0, -2);
+                    }
+                    return word.slice(0, -suffix.length);
+                }
+            }
+            return word;
+        }
+        static lemmatize(word, options = {}) {
+            if (options.lemmatizationRules && options.lemmatizationRules[word]) {
+                return options.lemmatizationRules[word];
+            }
+            if (word.endsWith("ing"))
+                return word.slice(0, -3);
+            if (word.endsWith("ed"))
+                return word.slice(0, -2);
+            return word;
+        }
+        static generateNGrams(tokens, n) {
+            if (tokens.length < n)
+                return [];
+            const ngrams = [];
+            for (let i = 0; i <= tokens.length - n; i++) {
+                ngrams.push(tokens.slice(i, i + n).join(" "));
+            }
+            return ngrams;
+        }
+        calculateScores() {
+            const totalWords = this.processedWords.length;
+            const scores = {};
+            this.processedWords.forEach(token => {
+                const tf = this.termFrequency[token] || 0;
+                scores[token] = (tf / totalWords) * (this.inverseDocFreq[token] || 0);
+            });
+            this.scores = scores;
+            return scores;
+        }
+        extractKeywords(topN) {
+            const entries = Object.entries(this.scores).sort((a, b) => b[1] - a[1]);
+            return Object.fromEntries(entries.slice(0, topN));
+        }
+        processedWordsIndex(word) {
+            return this.processedWords.indexOf(word);
+        }
+    }
+    class TFIDFVectorizer {
+        constructor(docs, options = {}) {
+            var _a;
+            this.docTexts = docs;
+            this.tfidf = new TFIDF(docs, options);
+            // Collect all unique terms
+            const termFreq = {};
+            docs.forEach(doc => {
+                const tokens = doc.split(/\s+/);
+                const cleaned = tokens.map(t => t.replace(/[^a-zA-Z0-9]+/g, ""));
+                const processed = TFIDF.processWords(cleaned, options);
+                processed.forEach(t => {
+                    termFreq[t] = (termFreq[t] || 0) + 1;
+                });
+            });
+            const maxVocab = (_a = options.maxVocabSize) !== null && _a !== void 0 ? _a : 2000;
+            const sortedTerms = Object.entries(termFreq)
+                .sort((a, b) => b[1] - a[1])
+                .slice(0, maxVocab)
+                .map(([term]) => term);
+            this.vocabulary = sortedTerms;
+            console.log(`✅ TFIDFVectorizer vocabulary capped at: ${this.vocabulary.length} terms.`);
+        }
+        vectorize(doc) {
+            const tokens = doc.split(/\s+/);
+            const cleaned = tokens.map(t => t.replace(/[^a-zA-Z0-9]+/g, ""));
+            const processed = TFIDF.processWords(cleaned, this.tfidf.options);
+            const termFreq = {};
+            processed.forEach(token => {
+                termFreq[token] = (termFreq[token] || 0) + 1;
+            });
+            const totalTerms = processed.length;
+            return this.vocabulary.map(term => {
+                const tf = totalTerms > 0 ? (termFreq[term] || 0) / totalTerms : 0;
+                const idf = this.tfidf.inverseDocFreq[term] || 0;
+                return tf * idf;
+            });
+        }
+        vectorizeAll() {
+            return this.docTexts.map(doc => this.vectorize(doc));
+        }
+        static l2normalize(vec) {
+            const norm = Math.sqrt(vec.reduce((s, x) => s + x * x, 0));
+            return norm === 0 ? vec : vec.map(x => x / norm);
+        }
+    }
+
     exports.Activations = Activations;
     exports.Augment = Augment;
     exports.AutoComplete = AutoComplete;
@@ -1467,10 +1786,16 @@
     exports.IO = IO;
     exports.IntentClassifier = IntentClassifier;
     exports.LanguageClassifier = LanguageClassifier;
+    exports.MiniTransformer = MiniTransformer;
+    exports.ModulePool = ModulePool;
     exports.RefinerELM = RefinerELM;
+    exports.SignalBus = SignalBus;
+    exports.TFIDF = TFIDF;
+    exports.TFIDFVectorizer = TFIDFVectorizer;
     exports.TextEncoder = TextEncoder;
     exports.Tokenizer = Tokenizer;
     exports.UniversalEncoder = UniversalEncoder;
+    exports.Vocab = Vocab;
     exports.VotingClassifierELM = VotingClassifierELM;
     exports.bindAutocompleteUI = bindAutocompleteUI;
     exports.defaultConfig = defaultConfig;

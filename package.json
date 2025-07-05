@@ -21,6 +21,7 @@
     "dev:chain3": "DEMO=chain-encoder-feauture-combine vite",
     "dev:chain4": "DEMO=voting vite",
     "dev:chain5": "DEMO=chain-with-save vite",
+    "dev:see": "DEMO=StarfishEvolutionEngine vite",
     "test": "vitest"
   },
   "repository": {

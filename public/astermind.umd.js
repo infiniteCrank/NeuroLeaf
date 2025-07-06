@@ -1456,8 +1456,30 @@
         }
     }
 
+    class FeedbackStore {
+        constructor() {
+            this.feedbacks = [];
+        }
+        addFeedback(f) {
+            this.feedbacks.push(f);
+        }
+        getModuleFeedback(moduleId) {
+            let likes = 0, dislikes = 0;
+            for (const f of this.feedbacks) {
+                if (f.moduleId === moduleId) {
+                    if (f.score > 0)
+                        likes++;
+                    else
+                        dislikes++;
+                }
+            }
+            return { likes, dislikes };
+        }
+    }
+    const MODULE_ROLES = ["listener", "communicator", "explorer", "synthesizer"];
     class ModulePool {
         constructor() {
+            this.moduleFitness = new Map();
             this.modules = [];
         }
         addModule(mod) {
@@ -1472,65 +1494,233 @@
         listModules() {
             return this.modules;
         }
-        evolveModules() {
+        evolveModules(feedbackStore) {
+            var _a;
             const clones = [];
             const survivors = [];
             for (const mod of this.modules) {
-                const score = this.computeScore(mod.metrics);
-                if (score < 0.3) {
-                    console.log(`❌ Removing ${mod.id} (score ${score.toFixed(4)})`);
+                const { likes, dislikes } = feedbackStore.getModuleFeedback(mod.id);
+                const usage = mod.signalsConsumedByOthers;
+                const totalFeedback = likes + dislikes || 1;
+                const affinity = likes / totalFeedback;
+                const roleBoost = mod.role === "communicator" ? 0.1 : 0;
+                const noveltyBoost = ((_a = mod.lastNovelty) !== null && _a !== void 0 ? _a : 0) * 0.2;
+                const fitness = affinity * 0.5 + (usage / (usage + 1)) * 0.3 + roleBoost + noveltyBoost;
+                this.moduleFitness.set(mod.id, fitness);
+                if (fitness < 0.3) {
+                    console.log(`❌ Removing ${mod.id} (fitness ${fitness.toFixed(2)})`);
                     continue;
                 }
-                if (score > 0.6) {
+                if (fitness > 0.7) {
                     const newId = `${mod.id}-clone-${Date.now()}`;
-                    console.log(`✨ Cloning ${mod.id} -> ${newId}`);
-                    const cloned = Object.assign(Object.assign({}, mod), { id: newId });
-                    // Simple mutation
-                    if (cloned.elm && cloned.elm.config && typeof cloned.elm.config.dropout === "number") {
-                        cloned.elm.config.dropout = Math.max(0, Math.min(0.2, cloned.elm.config.dropout + (Math.random() * 0.02 - 0.01)));
+                    const newRole = Math.random() < 0.3
+                        ? MODULE_ROLES[Math.floor(Math.random() * MODULE_ROLES.length)]
+                        : mod.role;
+                    if (newRole !== mod.role) {
+                        console.log(`🔄 ${mod.id} changed role: ${mod.role} ➡️ ${newRole}`);
                     }
+                    console.log(`✨ Cloning ${mod.id} -> ${newId}`);
+                    const cloned = Object.assign(Object.assign({}, mod), { id: newId, role: newRole, signalLikes: 0, signalDislikes: 0, signalsConsumedByOthers: 0, emittedSignalIds: [], signalHistory: [], lastNovelty: undefined });
                     clones.push(cloned);
                 }
                 survivors.push(mod);
             }
             this.modules = [...survivors, ...clones];
         }
-        computeScore(metrics) {
-            return (metrics.recall1 * 0.5 +
-                metrics.recall5 * 0.3 +
-                metrics.mrr * 0.2 -
-                metrics.avgLatency * 0.01);
-        }
-        /**
-         * Each module emits a signal to the bus.
-         */
         broadcastAllSignals(bus, vectorizer) {
             for (const mod of this.modules) {
-                const text = `Signal from ${mod.id}`;
-                const vector = vectorizer.vectorize(text);
+                const now = Date.now();
+                const internalId = `${mod.id}-internal-${now}-${Math.floor(Math.random() * 1000)}`;
+                const internalVector = vectorizer.vectorize(`Embedding from ${mod.id}`);
                 bus.broadcast({
-                    id: `${mod.id}-${Date.now()}`,
+                    id: internalId,
                     sourceModuleId: mod.id,
-                    vector,
-                    timestamp: Date.now(),
-                    metadata: {
-                        role: mod.role
-                    }
+                    vector: internalVector,
+                    timestamp: now,
+                    metadata: { role: "internal", parents: [] }
                 });
+                mod.emittedSignalIds.push(internalId);
+                const humanId = `${mod.id}-human-${now}-${Math.floor(Math.random() * 1000)}`;
+                const humanVector = vectorizer.vectorize(`Message from ${mod.id}`);
+                bus.broadcast({
+                    id: humanId,
+                    sourceModuleId: mod.id,
+                    vector: humanVector,
+                    timestamp: now,
+                    metadata: { role: "human", parents: [] }
+                });
+                mod.emittedSignalIds.push(humanId);
+                if (Math.random() < 0.3) {
+                    let syntheticVector;
+                    let parentIds = [];
+                    if (Math.random() < 0.5) {
+                        syntheticVector = Array.from({ length: internalVector.length }, () => Math.random() * 2 - 1);
+                        console.log(`🌱 ${mod.id} emitted RANDOM synthetic signal.`);
+                    }
+                    else if (mod.signalHistory.length > 0) {
+                        const signalsToCombine = mod.signalHistory.slice(-5);
+                        syntheticVector = this.averageVectors(signalsToCombine.map(s => s.vector));
+                        parentIds = signalsToCombine.map(s => s.id);
+                        console.log(`🌿 ${mod.id} emitted RECOMBINED synthetic signal from ${parentIds.length} parents.`);
+                    }
+                    else {
+                        syntheticVector = Array.from({ length: internalVector.length }, () => Math.random() * 2 - 1);
+                        console.log(`🌱 ${mod.id} emitted fallback RANDOM synthetic signal.`);
+                    }
+                    const syntheticId = `${mod.id}-synthetic-${now}-${Math.floor(Math.random() * 1000)}`;
+                    bus.broadcast({
+                        id: syntheticId,
+                        sourceModuleId: mod.id,
+                        vector: syntheticVector,
+                        timestamp: now,
+                        metadata: {
+                            role: "synthetic",
+                            parents: parentIds
+                        }
+                    });
+                    mod.emittedSignalIds.push(syntheticId);
+                }
             }
         }
-        /**
-         * Each module consumes signals from others.
-         */
+        getSignalLineage(signalId, bus) {
+            var _a, _b;
+            const signal = bus.getSignals().find(s => s.id === signalId);
+            if (!signal)
+                return [];
+            const parents = (_b = (_a = signal.metadata) === null || _a === void 0 ? void 0 : _a.parents) !== null && _b !== void 0 ? _b : [];
+            let lineage = [...parents];
+            for (const parentId of parents) {
+                const ancestorLine = this.getSignalLineage(parentId, bus);
+                lineage = lineage.concat(ancestorLine);
+            }
+            return lineage;
+        }
+        weightedAverageVectors(signals, bus) {
+            var _a;
+            if (signals.length === 0)
+                return [];
+            const length = signals[0].vector.length;
+            const sums = Array(length).fill(0);
+            let totalWeight = 0;
+            for (const signal of signals) {
+                const parentModuleId = signal.sourceModuleId;
+                const medianFitness = this.getMedianFitness();
+                const fitness = (_a = this.moduleFitness.get(parentModuleId)) !== null && _a !== void 0 ? _a : medianFitness;
+                const novelty = this.computeSignalNovelty(signal, bus);
+                const weight = 0.1 + 0.7 * fitness + 0.3 * novelty;
+                for (let i = 0; i < length; i++) {
+                    sums[i] += signal.vector[i] * weight;
+                }
+                totalWeight += weight;
+            }
+            if (totalWeight === 0)
+                return Array(length).fill(0);
+            return sums.map(s => s / totalWeight);
+        }
+        getMedianFitness() {
+            const fitnesses = Array.from(this.moduleFitness.values());
+            if (fitnesses.length === 0)
+                return 0.5;
+            fitnesses.sort((a, b) => a - b);
+            const mid = Math.floor(fitnesses.length / 2);
+            return fitnesses.length % 2 !== 0
+                ? fitnesses[mid]
+                : (fitnesses[mid - 1] + fitnesses[mid]) / 2;
+        }
         consumeAllSignals(bus) {
             for (const mod of this.modules) {
                 const signals = bus.getSignalsFromOthers(mod.id);
-                // You can define how to consume them.
-                // For example, count how many signals were observed:
-                if (signals.length > 0) {
-                    console.log(`🔊 ${mod.id} observed ${signals.length} signals from peers.`);
+                if (signals.length === 0)
+                    continue;
+                console.log(`🔊 ${mod.id} observed ${signals.length} signals.`);
+                mod.signalHistory.push(...signals);
+                if (mod.signalHistory.length > 50) {
+                    mod.signalHistory = mod.signalHistory.slice(-50);
+                }
+                const internalSignals = signals.filter(s => { var _a; return ((_a = s.metadata) === null || _a === void 0 ? void 0 : _a.role) === "internal"; });
+                mod.signalsConsumedByOthers += internalSignals.length;
+                if (internalSignals.length > 0 && mod.elm) {
+                    const avgVec = this.weightedAverageVectors(internalSignals, bus);
+                    const novelty = this.computeNoveltyScore(avgVec, mod.signalHistory);
+                    mod.lastNovelty = Math.min(novelty, 1);
+                    const hash = "cat-" + Math.abs(Math.floor(avgVec.reduce((a, b) => a + b, 0) * 1000));
+                    if (!mod.elm.categories.includes(hash)) {
+                        mod.elm.categories.push(hash);
+                        console.log(`🪴 ${mod.id} discovered new category: ${hash}`);
+                    }
+                    const catIndex = mod.elm.categories.indexOf(hash);
+                    const label = Array(mod.elm.categories.length).fill(0);
+                    label[catIndex] = 1;
+                    mod.elm.trainFromData([avgVec], [label], { reuseWeights: true });
+                    if (typeof mod.elm.config.dropout === "number") {
+                        const oldDropout = mod.elm.config.dropout;
+                        mod.elm.config.dropout = Math.max(0, Math.min(0.2, oldDropout + (Math.random() * 0.02 - 0.01)));
+                        console.log(`⚙️ ${mod.id} adjusted dropout: ${oldDropout.toFixed(3)} -> ${mod.elm.config.dropout.toFixed(3)}`);
+                    }
+                    console.log(`⚡ ${mod.id} retrained with novelty=${novelty.toFixed(3)} (fitness-weighted ancestors)`);
                 }
             }
+        }
+        averageVectors(vectors) {
+            if (vectors.length === 0)
+                return [];
+            const length = vectors[0].length;
+            const sums = Array(length).fill(0);
+            for (const vec of vectors) {
+                for (let i = 0; i < length; i++) {
+                    sums[i] += vec[i];
+                }
+            }
+            return sums.map(s => s / vectors.length);
+        }
+        computeNoveltyScore(vector, history) {
+            if (history.length === 0)
+                return 1;
+            const lastVectors = history.map(s => s.vector);
+            const avgVec = this.averageVectors(lastVectors);
+            const dot = vector.reduce((sum, v, i) => sum + v * avgVec[i], 0);
+            const normA = Math.sqrt(vector.reduce((sum, v) => sum + v * v, 0));
+            const normB = Math.sqrt(avgVec.reduce((sum, v) => sum + v * v, 0));
+            const similarity = dot / (normA * normB + 1e-8);
+            return 1 - similarity;
+        }
+        findSignalById(id, bus) {
+            return bus.getSignals().find(s => s.id === id);
+        }
+        getAncestorVectors(signal, bus) {
+            var _a;
+            const vectors = [];
+            if (!((_a = signal.metadata) === null || _a === void 0 ? void 0 : _a.parents))
+                return vectors;
+            for (const parentId of signal.metadata.parents) {
+                const parent = this.findSignalById(parentId, bus);
+                if (parent === null || parent === void 0 ? void 0 : parent.vector) {
+                    vectors.push(parent.vector);
+                    const further = this.getAncestorVectors(parent, bus);
+                    vectors.push(...further);
+                }
+            }
+            return vectors;
+        }
+        computeSignalNovelty(signal, bus) {
+            var _a;
+            if (!signal.vector || signal.vector.length === 0)
+                return 0;
+            if (!((_a = signal.metadata) === null || _a === void 0 ? void 0 : _a.parents) || signal.metadata.parents.length === 0)
+                return 1;
+            const parentVectors = [];
+            for (const parentId of signal.metadata.parents) {
+                const parent = this.findSignalById(parentId, bus);
+                if (parent === null || parent === void 0 ? void 0 : parent.vector) {
+                    parentVectors.push(parent.vector);
+                    const grandParents = this.getAncestorVectors(parent, bus);
+                    parentVectors.push(...grandParents);
+                }
+            }
+            if (parentVectors.length === 0)
+                return 1;
+            const avgParent = this.averageVectors(parentVectors);
+            return this.computeNoveltyScore(signal.vector, [{ vector: avgParent }]);
         }
     }
 
@@ -1783,6 +1973,7 @@
     exports.ELM = ELM;
     exports.EncoderELM = EncoderELM;
     exports.FeatureCombinerELM = FeatureCombinerELM;
+    exports.FeedbackStore = FeedbackStore;
     exports.IO = IO;
     exports.IntentClassifier = IntentClassifier;
     exports.LanguageClassifier = LanguageClassifier;
